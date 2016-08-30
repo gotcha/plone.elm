@@ -56,8 +56,8 @@ init title =
 
 isLoggedIn : Model -> Bool
 isLoggedIn model =
-    case model.user of
-        Just user ->
+    case model.token of
+        Just token ->
             True
 
         Nothing ->
@@ -95,6 +95,10 @@ loginJSON model =
     encode 4 (login (userid model) (password model))
 
 
+titleJSON model =
+    encode 4 (object [ ( "title", string model.title ) ])
+
+
 
 -- UPDATE
 
@@ -107,9 +111,13 @@ type Msg
     | CancelLoginForm
     | ChangePassword String
     | ChangeUserId String
+    | ChangeTitle String
+    | UpdateTitle
     | LoggingIn
     | LoginSucceed String
     | LoginFail Http.Error
+    | UpdateSucceed String
+    | UpdateFail Http.Error
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -127,6 +135,9 @@ update msg model =
         LoggingIn ->
             ( model, getToken model )
 
+        UpdateTitle ->
+            ( model, updateTitle model )
+
         LoginSucceed newToken ->
             ( { model
                 | token = Just newToken
@@ -134,6 +145,12 @@ update msg model =
               }
             , Cmd.none
             )
+
+        UpdateFail _ ->
+            ( model, Cmd.none )
+
+        UpdateSucceed _ ->
+            ( model, Cmd.none )
 
         LoginFail _ ->
             ( { model | logging = False }, Cmd.none )
@@ -162,6 +179,11 @@ update msg model =
                 , Cmd.none
                 )
 
+        ChangeTitle newTitle ->
+            ( { model | title = newTitle }
+            , Cmd.none
+            )
+
 
 
 -- SUBSCRIPTIONS
@@ -181,7 +203,7 @@ view model =
     if model.logging then
         loginFormView model
     else
-        titleView model
+        mainView model
 
 
 loginFormView model =
@@ -195,13 +217,35 @@ loginFormView model =
         ]
 
 
-titleView model =
+mainView model =
     div []
         [ loginView model
-        , button [ Events.onClick Fetch ]
+        , titleView model
+        , debugView model
+        ]
+
+
+titleView model =
+    if isLoggedIn model then
+        updateTitleView model
+    else
+        displayTitleView model
+
+
+displayTitleView model =
+    div []
+        [ button [ Events.onClick Fetch ]
             [ text "Refresh" ]
         , div [] [ text model.title ]
-        , debugView model
+        ]
+
+
+updateTitleView model =
+    div []
+        [ input [ Attr.placeholder model.title, Events.onInput ChangeTitle ] []
+        , button [ Events.onClick UpdateTitle ]
+            [ text "Update" ]
+        , div [] [ text model.title ]
         ]
 
 
@@ -270,6 +314,29 @@ ploneAuth url model =
         }
 
 
+postTitle : String -> Model -> Task.Task Http.RawError Http.Response
+postTitle url model =
+    let
+        token =
+            case model.token of
+                Just token ->
+                    token
+
+                Nothing ->
+                    ""
+    in
+        Http.send Http.defaultSettings
+            { verb = "PATCH"
+            , headers =
+                [ ( "Accept", "application/json" )
+                , ( "Content-Type", "application/json" )
+                , ( "Authorization", "Bearer " ++ token )
+                ]
+            , url = url
+            , body = Http.string (titleJSON model)
+            }
+
+
 decodeTitle : Json.Decoder String
 decodeTitle =
     Json.at [ "title" ] Json.string
@@ -278,3 +345,50 @@ decodeTitle =
 decodeToken : Json.Decoder String
 decodeToken =
     Json.at [ "token" ] Json.string
+
+
+updateTitle : Model -> Cmd Msg
+updateTitle model =
+    let
+        url =
+            "http://localhost:8080/Plone/front-page"
+    in
+        Task.perform UpdateFail
+            UpdateSucceed
+            (isEmptyResponse (postTitle url model))
+
+
+isEmptyResponse : Task.Task Http.RawError Http.Response -> Task.Task Http.Error String
+isEmptyResponse response =
+    let
+        isEmpty str =
+            if str == "" then
+                Task.succeed "ok"
+            else
+                Task.fail (Http.UnexpectedPayload "body is not empty")
+    in
+        Task.mapError promoteError response
+            `Task.andThen` handleResponse isEmpty
+
+
+handleResponse : (String -> Task.Task Http.Error a) -> Http.Response -> Task.Task Http.Error a
+handleResponse handle response =
+    if 200 <= response.status && response.status < 300 then
+        case response.value of
+            Http.Text str ->
+                handle str
+
+            _ ->
+                Task.fail (Http.UnexpectedPayload "Response body is a blob, expecting a string.")
+    else
+        Task.fail (Http.BadResponse response.status response.statusText)
+
+
+promoteError : Http.RawError -> Http.Error
+promoteError rawError =
+    case rawError of
+        Http.RawTimeout ->
+            Http.Timeout
+
+        Http.RawNetworkError ->
+            Http.NetworkError
