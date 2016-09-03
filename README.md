@@ -8,3 +8,4 @@ Proof of concept : attacking Plone through `plone.restapi` with an Elm applicati
 * [ ] use MDL components
 * [ ] use `elm-css`
 * [ ] refactor urls
+* [ ] refactor into modules
