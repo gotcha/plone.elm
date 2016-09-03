@@ -18,6 +18,7 @@ import Http
 import Json.Decode as Json
 import Json.Encode exposing (encode, object, string)
 import Debug
+import HttpBuilder
 
 
 main =
@@ -91,22 +92,14 @@ login userid password =
         ]
 
 
-loginJSON model =
-    encode 4 (login (userid model) (password model))
-
-
-titleJSON model =
-    encode 4 (object [ ( "title", string model.title ) ])
-
-
 
 -- UPDATE
 
 
 type Msg
     = Fetch
-    | FetchSucceed String
-    | FetchFail Http.Error
+    | FetchSucceed (HttpBuilder.Response String)
+    | FetchFail (HttpBuilder.Error String)
     | LoginForm
     | CancelLoginForm
     | ChangePassword String
@@ -114,10 +107,10 @@ type Msg
     | ChangeTitle String
     | UpdateTitle
     | LoggingIn
-    | LoginSucceed String
-    | LoginFail Http.Error
-    | UpdateSucceed String
-    | UpdateFail Http.Error
+    | LoginSucceed (HttpBuilder.Response String)
+    | LoginFail (HttpBuilder.Error String)
+    | UpdateSucceed (HttpBuilder.Response String)
+    | UpdateFail (HttpBuilder.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -126,8 +119,8 @@ update msg model =
         Fetch ->
             ( model, getDocumentTitle )
 
-        FetchSucceed newTitle ->
-            ( { model | title = newTitle }, Cmd.none )
+        FetchSucceed response ->
+            ( { model | title = response.data }, Cmd.none )
 
         FetchFail _ ->
             ( model, Cmd.none )
@@ -138,9 +131,9 @@ update msg model =
         UpdateTitle ->
             ( model, updateTitle model )
 
-        LoginSucceed newToken ->
+        LoginSucceed response ->
             ( { model
-                | token = Just newToken
+                | token = Just response.data
                 , logging = False
               }
             , Cmd.none
@@ -254,7 +247,6 @@ debugView model =
         [ hr [] []
         , text (toString model)
         , hr [] []
-        , pre [] [ text (loginJSON model) ]
         ]
 
 
@@ -271,51 +263,48 @@ loginView model =
 
 getDocumentTitle : Cmd Msg
 getDocumentTitle =
-    let
-        url =
-            "http://localhost:8080/Plone/front-page"
-    in
-        Task.perform FetchFail
-            FetchSucceed
-            (Http.fromJson decodeTitle (ploneGet url))
+    Task.perform FetchFail
+        FetchSucceed
+        fetchDocumentTitle
 
 
-ploneGet : String -> Task.Task Http.RawError Http.Response
-ploneGet url =
-    Http.send Http.defaultSettings
-        { verb = "GET"
-        , headers = [ ( "Accept", "application/json" ) ]
-        , url = url
-        , body = Http.empty
-        }
+decodeTitle : Json.Decoder String
+decodeTitle =
+    Json.at [ "title" ] Json.string
+
+
+fetchDocumentTitle : Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+fetchDocumentTitle =
+    HttpBuilder.get "http://localhost:8080/Plone/front-page"
+        |> HttpBuilder.withHeader "Accept" "application/json"
+        |> HttpBuilder.send (HttpBuilder.jsonReader decodeTitle) HttpBuilder.stringReader
 
 
 getToken : Model -> Cmd Msg
 getToken model =
-    let
-        url =
-            "http://localhost:8080/Plone/@login"
-    in
-        Task.perform LoginFail
-            LoginSucceed
-            (Http.fromJson decodeToken (ploneAuth url model))
+    Task.perform LoginFail
+        LoginSucceed
+        (fetchToken model)
 
 
-ploneAuth : String -> Model -> Task.Task Http.RawError Http.Response
-ploneAuth url model =
-    Http.send Http.defaultSettings
-        { verb = "POST"
-        , headers =
+decodeToken : Json.Decoder String
+decodeToken =
+    Json.at [ "token" ] Json.string
+
+
+fetchToken : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+fetchToken model =
+    HttpBuilder.post "http://localhost:8080/Plone/@login"
+        |> HttpBuilder.withHeaders
             [ ( "Accept", "application/json" )
             , ( "Content-Type", "application/json" )
             ]
-        , url = url
-        , body = Http.string (loginJSON model)
-        }
+        |> HttpBuilder.withJsonBody (login (userid model) (password model))
+        |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
 
 
-postTitle : String -> Model -> Task.Task Http.RawError Http.Response
-postTitle url model =
+postTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+postTitle model =
     let
         token =
             case model.token of
@@ -325,70 +314,18 @@ postTitle url model =
                 Nothing ->
                     ""
     in
-        Http.send Http.defaultSettings
-            { verb = "PATCH"
-            , headers =
+        HttpBuilder.patch "http://localhost:8080/Plone/front-page"
+            |> HttpBuilder.withHeaders
                 [ ( "Accept", "application/json" )
                 , ( "Content-Type", "application/json" )
                 , ( "Authorization", "Bearer " ++ token )
                 ]
-            , url = url
-            , body = Http.string (titleJSON model)
-            }
-
-
-decodeTitle : Json.Decoder String
-decodeTitle =
-    Json.at [ "title" ] Json.string
-
-
-decodeToken : Json.Decoder String
-decodeToken =
-    Json.at [ "token" ] Json.string
+            |> HttpBuilder.withJsonBody (object [ ( "title", string model.title ) ])
+            |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
 
 
 updateTitle : Model -> Cmd Msg
 updateTitle model =
-    let
-        url =
-            "http://localhost:8080/Plone/front-page"
-    in
-        Task.perform UpdateFail
-            UpdateSucceed
-            (isEmptyResponse (postTitle url model))
-
-
-isEmptyResponse : Task.Task Http.RawError Http.Response -> Task.Task Http.Error String
-isEmptyResponse response =
-    let
-        isEmpty str =
-            if str == "" then
-                Task.succeed "ok"
-            else
-                Task.fail (Http.UnexpectedPayload "body is not empty")
-    in
-        Task.mapError promoteError response
-            `Task.andThen` handleResponse isEmpty
-
-
-handleResponse : (String -> Task.Task Http.Error a) -> Http.Response -> Task.Task Http.Error a
-handleResponse handle response =
-    if 200 <= response.status && response.status < 300 then
-        case response.value of
-            Http.Text str ->
-                handle str
-
-            _ ->
-                Task.fail (Http.UnexpectedPayload "Response body is a blob, expecting a string.")
-    else
-        Task.fail (Http.BadResponse response.status response.statusText)
-
-
-promoteError : Http.RawError -> Http.Error
-promoteError rawError =
-    case rawError of
-        Http.RawTimeout ->
-            Http.Timeout
-
-        Http.RawNetworkError ->
-            Http.NetworkError
+    Task.perform UpdateFail
+        UpdateSucceed
+        (postTitle model)
