@@ -39,6 +39,7 @@ type alias Model =
     , user : Maybe User
     , logging : Bool
     , token : Maybe String
+    , baseUrl : String
     }
 
 
@@ -50,7 +51,7 @@ type alias User =
 
 init : String -> ( Model, Cmd Msg )
 init title =
-    ( Model title Nothing False Nothing
+    ( Model title Nothing False Nothing "http://localhost:8080/Plone/"
     , Cmd.none
     )
 
@@ -117,7 +118,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case Debug.log "model" msg of
         Fetch ->
-            ( model, getDocumentTitle )
+            ( model, (getDocumentTitle model) )
 
         FetchSucceed response ->
             ( { model | title = response.data }, Cmd.none )
@@ -261,11 +262,11 @@ loginView model =
 -- HTTP
 
 
-getDocumentTitle : Cmd Msg
-getDocumentTitle =
+getDocumentTitle : Model -> Cmd Msg
+getDocumentTitle model =
     Task.perform FetchFail
         FetchSucceed
-        fetchDocumentTitle
+        (fetchDocumentTitle model)
 
 
 decodeTitle : Json.Decoder String
@@ -273,11 +274,20 @@ decodeTitle =
     Json.at [ "title" ] Json.string
 
 
-fetchDocumentTitle : Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-fetchDocumentTitle =
-    HttpBuilder.get "http://localhost:8080/Plone/front-page"
-        |> HttpBuilder.withHeader "Accept" "application/json"
-        |> HttpBuilder.send (HttpBuilder.jsonReader decodeTitle) HttpBuilder.stringReader
+fetchDocumentTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+fetchDocumentTitle model =
+    let
+        url =
+            ploneUrl model "front-page"
+    in
+        HttpBuilder.get url
+            |> HttpBuilder.withHeader "Accept" "application/json"
+            |> HttpBuilder.send (HttpBuilder.jsonReader decodeTitle) HttpBuilder.stringReader
+
+
+ploneUrl : Model -> String -> String
+ploneUrl model path =
+    model.baseUrl ++ path
 
 
 getToken : Model -> Cmd Msg
@@ -294,13 +304,17 @@ decodeToken =
 
 fetchToken : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
 fetchToken model =
-    HttpBuilder.post "http://localhost:8080/Plone/@login"
-        |> HttpBuilder.withHeaders
-            [ ( "Accept", "application/json" )
-            , ( "Content-Type", "application/json" )
-            ]
-        |> HttpBuilder.withJsonBody (login (userid model) (password model))
-        |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
+    let
+        url =
+            ploneUrl model "@login"
+    in
+        HttpBuilder.post url
+            |> HttpBuilder.withHeaders
+                [ ( "Accept", "application/json" )
+                , ( "Content-Type", "application/json" )
+                ]
+            |> HttpBuilder.withJsonBody (login (userid model) (password model))
+            |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
 
 
 postTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
@@ -313,8 +327,11 @@ postTitle model =
 
                 Nothing ->
                     ""
+
+        url =
+            ploneUrl model "front-page"
     in
-        HttpBuilder.patch "http://localhost:8080/Plone/front-page"
+        HttpBuilder.patch url
             |> HttpBuilder.withHeaders
                 [ ( "Accept", "application/json" )
                 , ( "Content-Type", "application/json" )

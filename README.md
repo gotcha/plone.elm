@@ -7,5 +7,5 @@ Proof of concept : attacking Plone through `plone.restapi` with an Elm applicati
 * [x] use `elm-http-builder`
 * [ ] use MDL components
 * [ ] use `elm-css`
-* [ ] refactor urls
+* [x] refactor urls
 * [ ] refactor into modules
