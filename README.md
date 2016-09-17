@@ -10,3 +10,8 @@ Proof of concept : attacking Plone through `plone.restapi` with an Elm applicati
 * [x] refactor urls
 * [ ] refactor into modules
 * [ ] use `elm-test`
+* [ ] better UI
+  - [ ] initialize title on load
+  - [ ] use layout to move login button to top right
+  - [ ] title live edit
+  - [ ] description
