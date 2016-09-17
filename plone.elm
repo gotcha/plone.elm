@@ -23,6 +23,8 @@ import Material
 import Material.Scheme
 import Material.Button as Button
 import Material.Textfield as Textfield
+import Material.Layout as Layout
+import Material.Icon as Icon
 import Material.Options exposing (css)
 
 
@@ -259,25 +261,41 @@ loginFormView model =
 
 
 mainView model =
-    div []
-        [ loginView model
-        , titleView model
-        , descriptionView model
-        , debugView model
-        ]
+    Layout.render Mdl
+        model.mdl
+        [ Layout.fixedHeader ]
+        { header = [ loginView model ]
+        , drawer = []
+        , tabs = ( [], [] )
+        , main = [ titleView model, descriptionView model, debugView model ]
+        }
 
 
 titleView model =
-    if isLoggedIn model then
-        updateTitleView model
-    else
-        displayTitleView model
+    displayTitleView model
 
 
 displayTitleView model =
-    div []
-        [ h2 [] [ text model.title ]
-        ]
+    let
+        editButton =
+            if isLoggedIn model then
+                Button.render Mdl [ 0 ] model.mdl [ Button.icon ] [ Icon.i "mode_edit" ]
+            else
+                text ""
+
+        updateSnippet =
+            if isLoggedIn model then
+                updateTitleView model
+            else
+                text ""
+    in
+        div []
+            [ h2 []
+                [ text model.title
+                , editButton
+                ]
+            , updateSnippet
+            ]
 
 
 descriptionView model =
@@ -299,7 +317,6 @@ updateTitleView model =
             , Textfield.value model.title
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateTitle ] [ text "Update" ]
-        , div [] [ text model.title ]
         ]
 
 

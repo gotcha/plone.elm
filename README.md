@@ -13,5 +13,5 @@ Proof of concept : attacking Plone through `plone.restapi` with an Elm applicati
 * [ ] better UI
   - [x] initialize title on load
   - [ ] use layout to move login button to top right
-  - [ ] title live edit
+  - [ ] title inline edit
   - [x] description
