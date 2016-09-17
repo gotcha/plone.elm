@@ -332,7 +332,7 @@ descriptionView model =
 
 
 updateTitleView model =
-    div []
+    div [ Attr.class "updateTitleWidget" ]
         [ Textfield.render Mdl
             [ 0 ]
             model.mdl
