@@ -26,7 +26,7 @@ import Material.Options exposing (css)
 
 main =
     Html.App.program
-        { init = init "no title"
+        { init = init
         , view = view
         , update = update
         , subscriptions = subscriptions
@@ -56,16 +56,17 @@ type alias User =
     }
 
 
-init : String -> ( Model, Cmd Msg )
-init title =
+init : ( Model, Cmd Msg )
+init =
     let
         -- Boilerplate: Always use this initial Mdl model store.
         mdl =
             Material.model
+
+        initial_model =
+            Model "" Nothing False Nothing "http://localhost:8080/Plone/" mdl
     in
-        ( Model title Nothing False Nothing "http://localhost:8080/Plone/" mdl
-        , Cmd.none
-        )
+        update Fetch initial_model
 
 
 isLoggedIn : Model -> Bool
