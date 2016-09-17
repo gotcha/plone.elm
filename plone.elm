@@ -46,6 +46,7 @@ type alias Model =
     , description : String
     , user : Maybe User
     , logging : Bool
+    , inline_edit : Bool
     , token : Maybe String
     , baseUrl :
         String
@@ -69,7 +70,7 @@ init =
             Material.model
 
         initial_model =
-            Model "" "" Nothing False Nothing "http://localhost:8080/Plone/" mdl
+            Model "" "" Nothing False False Nothing "http://localhost:8080/Plone/" mdl
     in
         update Fetch initial_model
 
@@ -131,6 +132,8 @@ type Msg
     | UpdateSucceed (HttpBuilder.Response String)
     | UpdateFail (HttpBuilder.Error String)
     | Mdl (Material.Msg Msg)
+    | InlineEdit
+    | CancelInlineEdit
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -154,7 +157,9 @@ update msg model =
             ( model, getToken model )
 
         UpdateTitle ->
-            ( model, updateTitle model )
+            ( { model | inline_edit = False }
+            , updateTitle model
+            )
 
         LoginSucceed response ->
             ( { model
@@ -205,6 +210,16 @@ update msg model =
         -- When the `Mdl` messages come through, update appropriately.
         Mdl msg' ->
             Material.update msg' model
+
+        InlineEdit ->
+            ( { model | inline_edit = True }
+            , Cmd.none
+            )
+
+        CancelInlineEdit ->
+            ( { model | inline_edit = False }
+            , Cmd.none
+            )
 
 
 
@@ -279,7 +294,13 @@ displayTitleView model =
     let
         editButton =
             if isLoggedIn model then
-                Button.render Mdl [ 0 ] model.mdl [ Button.icon ] [ Icon.i "mode_edit" ]
+                Button.render Mdl
+                    [ 0 ]
+                    model.mdl
+                    [ Button.icon
+                    , Button.onClick InlineEdit
+                    ]
+                    [ Icon.i "mode_edit" ]
             else
                 text ""
 
@@ -288,13 +309,18 @@ displayTitleView model =
                 updateTitleView model
             else
                 text ""
+
+        titleWidget =
+            if model.inline_edit then
+                updateSnippet
+            else
+                h2 []
+                    [ text model.title
+                    , editButton
+                    ]
     in
         div []
-            [ h2 []
-                [ text model.title
-                , editButton
-                ]
-            , updateSnippet
+            [ titleWidget
             ]
 
 
@@ -317,6 +343,7 @@ updateTitleView model =
             , Textfield.value model.title
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateTitle ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
         ]
 
 
