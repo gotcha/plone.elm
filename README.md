@@ -1,6 +1,6 @@
 # Plone.elm
 
-Proof of concept : attacking Plone through `plone.restapi` with an Elm application
+Edit Plone through `plone.restapi` with an Elm application
 
 # TODOS
 
@@ -10,8 +10,10 @@ Proof of concept : attacking Plone through `plone.restapi` with an Elm applicati
 * [x] refactor urls
 * [ ] refactor into modules
 * [ ] use `elm-test`
-* [x] better UI
+* [ ] better UI
   - [x] initialize title on load
   - [x] use layout to move login button to top right
   - [x] title inline edit
   - [x] description
+  - [ ] allow Enter and Esc
+
