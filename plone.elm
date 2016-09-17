@@ -267,8 +267,7 @@ titleView model =
 
 displayTitleView model =
     div []
-        [ Button.render Mdl [ 0 ] model.mdl [ Button.onClick Fetch ] [ text "Refresh" ]
-        , div [] [ text model.title ]
+        [ h2 [] [ text model.title ]
         ]
 
 
