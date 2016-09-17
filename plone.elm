@@ -4,10 +4,8 @@ import Html
     exposing
         ( div
         , text
-        , button
         , hr
         , h2
-        , input
         , pre
         )
 import Html.App
@@ -19,6 +17,11 @@ import Json.Decode as Json
 import Json.Encode exposing (encode, object, string)
 import Debug
 import HttpBuilder
+import Material
+import Material.Scheme
+import Material.Button as Button
+import Material.Textfield as Textfield
+import Material.Options exposing (css)
 
 
 main =
@@ -39,7 +42,11 @@ type alias Model =
     , user : Maybe User
     , logging : Bool
     , token : Maybe String
-    , baseUrl : String
+    , baseUrl :
+        String
+    , mdl :
+        Material.Model
+        -- Boilerplate: model store for any and all Mdl components you use.
     }
 
 
@@ -51,9 +58,14 @@ type alias User =
 
 init : String -> ( Model, Cmd Msg )
 init title =
-    ( Model title Nothing False Nothing "http://localhost:8080/Plone/"
-    , Cmd.none
-    )
+    let
+        -- Boilerplate: Always use this initial Mdl model store.
+        mdl =
+            Material.model
+    in
+        ( Model title Nothing False Nothing "http://localhost:8080/Plone/" mdl
+        , Cmd.none
+        )
 
 
 isLoggedIn : Model -> Bool
@@ -112,6 +124,7 @@ type Msg
     | LoginFail (HttpBuilder.Error String)
     | UpdateSucceed (HttpBuilder.Response String)
     | UpdateFail (HttpBuilder.Error String)
+    | Mdl (Material.Msg Msg)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -178,6 +191,10 @@ update msg model =
             , Cmd.none
             )
 
+        -- When the `Mdl` messages come through, update appropriately.
+        Mdl msg' ->
+            Material.update msg' model
+
 
 
 -- SUBSCRIPTIONS
@@ -192,21 +209,42 @@ subscriptions model =
 -- VIEW
 
 
+type alias Mdl =
+    Material.Model
+
+
 view : Model -> Html.Html Msg
 view model =
     if model.logging then
         loginFormView model
+            |> Material.Scheme.top
     else
         mainView model
+            |> Material.Scheme.top
 
 
 loginFormView model =
     div []
         [ h2 [] [ text "Login Form" ]
-        , input [ Attr.placeholder "Userid", Events.onInput ChangeUserId ] []
-        , input [ Attr.placeholder "Password", Events.onInput ChangePassword ] []
-        , button [ Events.onClick LoggingIn ] [ text "Login" ]
-        , button [ Events.onClick CancelLoginForm ] [ text "Cancel" ]
+        , Textfield.render Mdl
+            [ 0 ]
+            model.mdl
+            [ Textfield.label "User Id"
+            , Textfield.floatingLabel
+            , Textfield.autofocus
+            , Textfield.text'
+            , Textfield.onInput ChangeUserId
+            ]
+        , Textfield.render Mdl
+            [ 1 ]
+            model.mdl
+            [ Textfield.label "Password"
+            , Textfield.floatingLabel
+            , Textfield.password
+            , Textfield.onInput ChangePassword
+            ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoggingIn ] [ text "Login" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelLoginForm ] [ text "Cancel" ]
         , debugView model
         ]
 
@@ -228,17 +266,24 @@ titleView model =
 
 displayTitleView model =
     div []
-        [ button [ Events.onClick Fetch ]
-            [ text "Refresh" ]
+        [ Button.render Mdl [ 0 ] model.mdl [ Button.onClick Fetch ] [ text "Refresh" ]
         , div [] [ text model.title ]
         ]
 
 
 updateTitleView model =
     div []
-        [ input [ Attr.placeholder model.title, Events.onInput ChangeTitle ] []
-        , button [ Events.onClick UpdateTitle ]
-            [ text "Update" ]
+        [ Textfield.render Mdl
+            [ 0 ]
+            model.mdl
+            [ Textfield.label "Title"
+            , Textfield.floatingLabel
+            , Textfield.autofocus
+            , Textfield.text'
+            , Textfield.onInput ChangeTitle
+            , Textfield.value model.title
+            ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateTitle ] [ text "Update" ]
         , div [] [ text model.title ]
         ]
 
@@ -255,7 +300,7 @@ loginView model =
     if isLoggedIn model then
         div [] [ text (userid model) ]
     else
-        button [ Events.onClick LoginForm ] [ text "Login" ]
+        Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoginForm ] [ text "Login" ]
 
 
 
