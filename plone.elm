@@ -47,6 +47,7 @@ type alias Model =
     , user : Maybe User
     , logging : Bool
     , inline_edit : Bool
+    , debug : Bool
     , token : Maybe String
     , baseUrl :
         String
@@ -70,7 +71,7 @@ init =
             Material.model
 
         initial_model =
-            Model "" "" Nothing False False Nothing "http://localhost:8080/Plone/" mdl
+            Model "" "" Nothing False False False Nothing "http://localhost:8080/Plone/" mdl
     in
         update Fetch initial_model
 
@@ -348,11 +349,14 @@ updateTitleView model =
 
 
 debugView model =
-    div []
-        [ hr [] []
-        , text (toString model)
-        , hr [] []
-        ]
+    if model.debug then
+        div []
+            [ hr [] []
+            , text (toString model)
+            , hr [] []
+            ]
+    else
+        text ""
 
 
 loginView model =
