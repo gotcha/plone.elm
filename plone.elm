@@ -357,7 +357,10 @@ debugView model =
 
 loginView model =
     if isLoggedIn model then
-        div [] [ text (userid model) ]
+        div []
+            [ Icon.i "person"
+            , text (userid model)
+            ]
     else
         Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoginForm ] [ text "Login" ]
 
