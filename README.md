@@ -9,3 +9,4 @@ Proof of concept : attacking Plone through `plone.restapi` with an Elm applicati
 * [ ] use `elm-css`
 * [x] refactor urls
 * [ ] refactor into modules
+* [ ] use `elm-test`
