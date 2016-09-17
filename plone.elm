@@ -6,6 +6,7 @@ import Html
         , text
         , hr
         , h2
+        , p
         , pre
         )
 import Html.App
@@ -14,6 +15,7 @@ import Html.Attributes as Attr
 import Task
 import Http
 import Json.Decode as Json
+import Json.Decode exposing ((:=))
 import Json.Encode exposing (encode, object, string)
 import Debug
 import HttpBuilder
@@ -39,6 +41,7 @@ main =
 
 type alias Model =
     { title : String
+    , description : String
     , user : Maybe User
     , logging : Bool
     , token : Maybe String
@@ -64,7 +67,7 @@ init =
             Material.model
 
         initial_model =
-            Model "" Nothing False Nothing "http://localhost:8080/Plone/" mdl
+            Model "" "" Nothing False Nothing "http://localhost:8080/Plone/" mdl
     in
         update Fetch initial_model
 
@@ -112,7 +115,7 @@ login userid password =
 
 type Msg
     = Fetch
-    | FetchSucceed (HttpBuilder.Response String)
+    | FetchSucceed (HttpBuilder.Response Page)
     | FetchFail (HttpBuilder.Error String)
     | LoginForm
     | CancelLoginForm
@@ -135,7 +138,12 @@ update msg model =
             ( model, (getDocumentTitle model) )
 
         FetchSucceed response ->
-            ( { model | title = response.data }, Cmd.none )
+            ( { model
+                | title = response.data.title
+                , description = response.data.description
+              }
+            , Cmd.none
+            )
 
         FetchFail _ ->
             ( model, Cmd.none )
@@ -254,6 +262,7 @@ mainView model =
     div []
         [ loginView model
         , titleView model
+        , descriptionView model
         , debugView model
         ]
 
@@ -268,6 +277,12 @@ titleView model =
 displayTitleView model =
     div []
         [ h2 [] [ text model.title ]
+        ]
+
+
+descriptionView model =
+    div []
+        [ p [] [ text model.description ]
         ]
 
 
@@ -314,12 +329,24 @@ getDocumentTitle model =
         (fetchDocumentTitle model)
 
 
-decodeTitle : Json.Decoder String
-decodeTitle =
-    Json.at [ "title" ] Json.string
+type alias Page =
+    { title : String
+    , description : String
+    }
 
 
-fetchDocumentTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+decodePage : Json.Decoder Page
+decodePage =
+    let
+        decodeDescription =
+            Json.at [ "description", "data" ] Json.string
+    in
+        Json.object2 Page
+            ("title" := Json.string)
+            decodeDescription
+
+
+fetchDocumentTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response Page)
 fetchDocumentTitle model =
     let
         url =
@@ -327,7 +354,7 @@ fetchDocumentTitle model =
     in
         HttpBuilder.get url
             |> HttpBuilder.withHeader "Accept" "application/json"
-            |> HttpBuilder.send (HttpBuilder.jsonReader decodeTitle) HttpBuilder.stringReader
+            |> HttpBuilder.send (HttpBuilder.jsonReader decodePage) HttpBuilder.stringReader
 
 
 ploneUrl : Model -> String -> String
