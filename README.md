@@ -10,6 +10,7 @@ Edit Plone through `plone.restapi` with an Elm application
 * [x] refactor urls
 * [ ] refactor into modules
 * [ ] use `elm-test`
+* [ ] use `navigation` to make urls
 * [ ] better UI
   - [x] initialize title on load
   - [x] use layout to move login button to top right
