@@ -169,12 +169,12 @@ update msg model =
 
         UpdateTitle ->
             ( { model | inline_edit = NoField }
-            , updateTitle model
+            , updateField Title model
             )
 
         UpdateDescription ->
             ( { model | inline_edit = NoField }
-            , updateDescription model
+            , updateField Description model
             )
 
         LoginSucceed response ->
@@ -499,8 +499,8 @@ fetchToken model =
             |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
 
 
-postTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-postTitle model =
+postField : Field -> Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+postField field model =
     let
         token =
             case model.token of
@@ -519,43 +519,39 @@ postTitle model =
                 , ( "Content-Type", "application/json" )
                 , ( "Authorization", "Bearer " ++ token )
                 ]
-            |> HttpBuilder.withJsonBody (object [ ( "title", string model.title ) ])
+            |> HttpBuilder.withJsonBody (jsonField field model)
             |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
 
 
-updateTitle : Model -> Cmd Msg
-updateTitle model =
-    Task.perform UpdateFail
-        UpdateSucceed
-        (postTitle model)
-
-
-postDescription : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-postDescription model =
+jsonField field model =
     let
-        token =
-            case model.token of
-                Just token ->
-                    token
+        name =
+            case field of
+                Title ->
+                    "title"
 
-                Nothing ->
+                Description ->
+                    "description"
+
+                NoField ->
+                    "no_field"
+
+        value =
+            case field of
+                Title ->
+                    model.title
+
+                Description ->
+                    model.description
+
+                NoField ->
                     ""
-
-        url =
-            ploneUrl model "front-page"
     in
-        HttpBuilder.patch url
-            |> HttpBuilder.withHeaders
-                [ ( "Accept", "application/json" )
-                , ( "Content-Type", "application/json" )
-                , ( "Authorization", "Bearer " ++ token )
-                ]
-            |> HttpBuilder.withJsonBody (object [ ( "description", string model.description ) ])
-            |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
+        (object [ ( name, string value ) ])
 
 
-updateDescription : Model -> Cmd Msg
-updateDescription model =
+updateField : Field -> Model -> Cmd Msg
+updateField field model =
     Task.perform UpdateFail
         UpdateSucceed
-        (postDescription model)
+        (postField field model)
