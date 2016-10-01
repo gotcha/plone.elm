@@ -10,7 +10,8 @@ Edit Plone through `plone.restapi` with an Elm application
 * [x] refactor urls
 * [ ] refactor into modules
 * [ ] use `elm-test`
-* [ ] use `navigation` to make urls
+* [ ] use `navigation` to make urls and `evancz/url-parser`
+* [ ] use `remote data`
 * [ ] better UI
   - [x] initialize title on load
   - [x] use layout to move login button to top right
@@ -18,4 +19,5 @@ Edit Plone through `plone.restapi` with an Elm application
   - [x] description
   - [ ] description inline edit
   - [ ] allow Enter and Esc
+* [ ] logout
 
