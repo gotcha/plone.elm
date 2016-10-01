@@ -19,5 +19,5 @@ Edit Plone through `plone.restapi` with an Elm application
   - [x] description
   - [x] description inline edit
   - [ ] allow Enter and Esc
-* [ ] logout
+* [x] logout
 

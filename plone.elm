@@ -148,6 +148,7 @@ type Msg
     | Change Field String
     | Update Field
     | LoggingIn
+    | Logout
     | LoginSucceed (HttpBuilder.Response String)
     | LoginFail (HttpBuilder.Error String)
     | UpdateSucceed (HttpBuilder.Response String)
@@ -181,6 +182,9 @@ update msg model =
             ( { model | inline_edit = NoField }
             , updateField field model
             )
+
+        Logout ->
+            ( { model | token = Nothing }, Cmd.none )
 
         LoginSucceed response ->
             ( { model
@@ -423,6 +427,7 @@ loginView model =
         div [ class [ PloneCss.NavBar ] ]
             [ Icon.i "person"
             , text (userid model)
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick Logout ] [ text "Logout" ]
             ]
     else
         Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoginForm ] [ text "Login" ]
