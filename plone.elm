@@ -121,6 +121,18 @@ login userid password =
         ]
 
 
+changeField field value model =
+    case field of
+        Title ->
+            { model | title = value }
+
+        Description ->
+            { model | description = value }
+
+        NoField ->
+            model
+
+
 
 -- UPDATE
 
@@ -133,10 +145,8 @@ type Msg
     | CancelLoginForm
     | ChangePassword String
     | ChangeUserId String
-    | ChangeTitle String
-    | ChangeDescription String
-    | UpdateTitle
-    | UpdateDescription
+    | Change Field String
+    | Update Field
     | LoggingIn
     | LoginSucceed (HttpBuilder.Response String)
     | LoginFail (HttpBuilder.Error String)
@@ -167,14 +177,9 @@ update msg model =
         LoggingIn ->
             ( model, getToken model )
 
-        UpdateTitle ->
+        Update field ->
             ( { model | inline_edit = NoField }
-            , updateField Title model
-            )
-
-        UpdateDescription ->
-            ( { model | inline_edit = NoField }
-            , updateField Description model
+            , updateField field model
             )
 
         LoginSucceed response ->
@@ -218,13 +223,8 @@ update msg model =
                 , Cmd.none
                 )
 
-        ChangeTitle newTitle ->
-            ( { model | title = newTitle }
-            , Cmd.none
-            )
-
-        ChangeDescription newDescription ->
-            ( { model | description = newDescription }
+        Change field value ->
+            ( changeField field value model
             , Cmd.none
             )
 
@@ -350,10 +350,10 @@ updateTitleView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput ChangeTitle
+            , Textfield.onInput (Change Title)
             , Textfield.value model.title
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateTitle ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (Update Title) ] [ text "Update" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
         ]
 
@@ -399,10 +399,10 @@ updateDescriptionView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput ChangeDescription
+            , Textfield.onInput (Change Description)
             , Textfield.value model.description
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateDescription ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (Update Description) ] [ text "Update" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
         ]
 
