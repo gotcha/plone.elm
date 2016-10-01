@@ -26,6 +26,8 @@ import Material.Textfield as Textfield
 import Material.Layout as Layout
 import Material.Icon as Icon
 import Material.Options exposing (css)
+import Html.CssHelpers exposing (withNamespace)
+import PloneCss
 
 
 main =
@@ -236,6 +238,8 @@ subscriptions model =
 -- VIEW
 
 
+{ id, class, classList } =
+    withNamespace "plone"
 type alias Mdl =
     Material.Model
 
@@ -288,10 +292,6 @@ mainView model =
 
 
 titleView model =
-    displayTitleView model
-
-
-displayTitleView model =
     let
         editButton =
             if isLoggedIn model then
@@ -361,7 +361,7 @@ debugView model =
 
 loginView model =
     if isLoggedIn model then
-        div []
+        div [ class [ PloneCss.NavBar ] ]
             [ Icon.i "person"
             , text (userid model)
             ]
