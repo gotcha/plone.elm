@@ -43,12 +43,18 @@ main =
 -- MODEL
 
 
+type Field
+    = Title
+    | Description
+    | NoField
+
+
 type alias Model =
     { title : String
     , description : String
     , user : Maybe User
     , logging : Bool
-    , inline_edit : Bool
+    , inline_edit : Field
     , debug : Bool
     , token : Maybe String
     , baseUrl :
@@ -73,7 +79,7 @@ init =
             Material.model
 
         initial_model =
-            Model "" "" Nothing False False False Nothing "http://localhost:8080/Plone/" mdl
+            Model "" "" Nothing False NoField False Nothing "http://localhost:8080/Plone/" mdl
     in
         update Fetch initial_model
 
@@ -128,14 +134,16 @@ type Msg
     | ChangePassword String
     | ChangeUserId String
     | ChangeTitle String
+    | ChangeDescription String
     | UpdateTitle
+    | UpdateDescription
     | LoggingIn
     | LoginSucceed (HttpBuilder.Response String)
     | LoginFail (HttpBuilder.Error String)
     | UpdateSucceed (HttpBuilder.Response String)
     | UpdateFail (HttpBuilder.Error String)
     | Mdl (Material.Msg Msg)
-    | InlineEdit
+    | InlineEdit Field
     | CancelInlineEdit
 
 
@@ -160,8 +168,13 @@ update msg model =
             ( model, getToken model )
 
         UpdateTitle ->
-            ( { model | inline_edit = False }
+            ( { model | inline_edit = NoField }
             , updateTitle model
+            )
+
+        UpdateDescription ->
+            ( { model | inline_edit = NoField }
+            , updateDescription model
             )
 
         LoginSucceed response ->
@@ -210,17 +223,22 @@ update msg model =
             , Cmd.none
             )
 
+        ChangeDescription newDescription ->
+            ( { model | description = newDescription }
+            , Cmd.none
+            )
+
         -- When the `Mdl` messages come through, update appropriately.
         Mdl msg' ->
             Material.update msg' model
 
-        InlineEdit ->
-            ( { model | inline_edit = True }
+        InlineEdit field ->
+            ( { model | inline_edit = field }
             , Cmd.none
             )
 
         CancelInlineEdit ->
-            ( { model | inline_edit = False }
+            ( { model | inline_edit = NoField }
             , Cmd.none
             )
 
@@ -299,7 +317,7 @@ titleView model =
                     [ 0 ]
                     model.mdl
                     [ Button.icon
-                    , Button.onClick InlineEdit
+                    , Button.onClick (InlineEdit Title)
                     ]
                     [ Icon.i "mode_edit" ]
             else
@@ -312,7 +330,7 @@ titleView model =
                 text ""
 
         titleWidget =
-            if model.inline_edit then
+            if model.inline_edit == Title then
                 updateSnippet
             else
                 h2 []
@@ -320,15 +338,7 @@ titleView model =
                     , editButton
                     ]
     in
-        div []
-            [ titleWidget
-            ]
-
-
-descriptionView model =
-    div []
-        [ p [] [ text model.description ]
-        ]
+        div [] [ titleWidget ]
 
 
 updateTitleView model =
@@ -344,6 +354,55 @@ updateTitleView model =
             , Textfield.value model.title
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateTitle ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
+        ]
+
+
+descriptionView model =
+    let
+        editButton =
+            if isLoggedIn model then
+                Button.render Mdl
+                    [ 0 ]
+                    model.mdl
+                    [ Button.icon
+                    , Button.onClick (InlineEdit Description)
+                    ]
+                    [ Icon.i "mode_edit" ]
+            else
+                text ""
+
+        updateSnippet =
+            if isLoggedIn model then
+                updateDescriptionView model
+            else
+                text ""
+
+        descriptionWidget =
+            if model.inline_edit == Description then
+                updateSnippet
+            else
+                p []
+                    [ text model.description
+                    , editButton
+                    ]
+    in
+        div [] [ descriptionWidget ]
+
+
+updateDescriptionView model =
+    div [ Attr.class "updateDescriptionWidget" ]
+        [ Textfield.render Mdl
+            [ 0 ]
+            model.mdl
+            [ Textfield.label "Description"
+            , Textfield.floatingLabel
+            , Textfield.autofocus
+            , Textfield.text'
+            , Textfield.onInput ChangeDescription
+            , Textfield.value model.description
+            ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick UpdateDescription ] [ text "Update" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
         ]
 
@@ -469,3 +528,34 @@ updateTitle model =
     Task.perform UpdateFail
         UpdateSucceed
         (postTitle model)
+
+
+postDescription : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+postDescription model =
+    let
+        token =
+            case model.token of
+                Just token ->
+                    token
+
+                Nothing ->
+                    ""
+
+        url =
+            ploneUrl model "front-page"
+    in
+        HttpBuilder.patch url
+            |> HttpBuilder.withHeaders
+                [ ( "Accept", "application/json" )
+                , ( "Content-Type", "application/json" )
+                , ( "Authorization", "Bearer " ++ token )
+                ]
+            |> HttpBuilder.withJsonBody (object [ ( "description", string model.description ) ])
+            |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
+
+
+updateDescription : Model -> Cmd Msg
+updateDescription model =
+    Task.perform UpdateFail
+        UpdateSucceed
+        (postDescription model)

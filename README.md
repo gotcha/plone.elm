@@ -17,7 +17,7 @@ Edit Plone through `plone.restapi` with an Elm application
   - [x] use layout to move login button to top right
   - [x] title inline edit
   - [x] description
-  - [ ] description inline edit
+  - [x] description inline edit
   - [ ] allow Enter and Esc
 * [ ] logout
 
