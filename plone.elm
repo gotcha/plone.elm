@@ -14,6 +14,7 @@ import Html.Events as Events
 import Html.Attributes as Attr
 import Task
 import Http
+import Return exposing (Return)
 import Json.Decode as Json
 import Json.Decode exposing ((:=))
 import Json.Encode exposing (encode, object, string)
@@ -71,7 +72,7 @@ type alias User =
     }
 
 
-init : ( Model, Cmd Msg )
+init : Return Msg Model
 init =
     let
         -- Boilerplate: Always use this initial Mdl model store.
@@ -158,7 +159,7 @@ type Msg
     | CancelInlineEdit
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> Return Msg Model
 update msg model =
     case Debug.log "model" msg of
         Fetch ->

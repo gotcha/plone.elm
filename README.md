@@ -10,6 +10,7 @@ Edit Plone through `plone.restapi` with an Elm application
 * [x] refactor urls
 * [ ] refactor into modules
 * [ ] use `elm-test`
+* [x] use `elm-return`
 * [ ] use `navigation` to make urls and `evancz/url-parser`
 * [ ] use `remote data`
 * [ ] better UI
