@@ -1,4 +1,4 @@
-module PloneCss exposing (..)
+module Plone.Css exposing (..)
 
 import Css exposing (..)
 import Css.Elements exposing (body, li)

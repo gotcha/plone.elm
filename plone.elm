@@ -28,7 +28,7 @@ import Material.Layout as Layout
 import Material.Icon as Icon
 import Material.Options exposing (css)
 import Html.CssHelpers exposing (withNamespace)
-import PloneCss
+import Plone.Css as PloneCss
 
 
 main =
