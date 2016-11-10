@@ -29,6 +29,7 @@ import Material.Icon as Icon
 import Material.Options exposing (css)
 import Html.CssHelpers exposing (withNamespace)
 import Plone.Css as PloneCss
+import Plone.Login exposing (..)
 
 
 main =
@@ -64,17 +65,8 @@ type alias Model =
     }
 
 
-type alias Security =
-    { token : Maybe String
-    , connecting : Bool
-    , user : Maybe User
-    }
-
-
-type alias User =
-    { userid : String
-    , password : String
-    }
+localUrl =
+    "http://localhost:8080/Plone/"
 
 
 init : Return Msg Model
@@ -88,49 +80,13 @@ init =
             { token = Nothing
             , connecting = False
             , user = Nothing
+            , baseUrl = localUrl
             }
 
         initial_model =
-            Model "" "" NoField False sec "http://localhost:8080/Plone/" mdl
+            Model "" "" NoField False sec localUrl mdl
     in
         update Fetch initial_model
-
-
-isLoggedIn : Model -> Bool
-isLoggedIn model =
-    case model.sec.token of
-        Just token ->
-            True
-
-        Nothing ->
-            False
-
-
-userid : Security -> String
-userid sec =
-    case sec.user of
-        Just user ->
-            user.userid
-
-        Nothing ->
-            "anonymous"
-
-
-password : Security -> String
-password sec =
-    case sec.user of
-        Just user ->
-            user.password
-
-        Nothing ->
-            ""
-
-
-login userid password =
-    object
-        [ ( "login", string userid )
-        , ( "password", string password )
-        ]
 
 
 changeField field value model =
@@ -161,126 +117,6 @@ type Msg
     | InlineEdit Field
     | CancelInlineEdit
     | LoginMsg LoginMessage
-
-
-type LoginMessage
-    = LoginForm
-    | CancelLoginForm
-    | ChangePassword String
-    | ChangeUserId String
-    | LoggingIn
-    | Logout
-    | LoginSucceed (HttpBuilder.Response String)
-    | LoginFail (HttpBuilder.Error String)
-
-
-loginUpdate : LoginMessage -> Model -> ( Model, Cmd LoginMessage )
-loginUpdate msg model =
-    case msg of
-        LoggingIn ->
-            ( model, getToken model )
-
-        Logout ->
-            let
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec' | token = Nothing }
-            in
-                ( { model | sec = sec }, Cmd.none )
-
-        LoginSucceed response ->
-            let
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec'
-                        | token = Just response.data
-                        , connecting = False
-                    }
-            in
-                ( { model | sec = sec }, Cmd.none )
-
-        LoginFail _ ->
-            let
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec'
-                        | connecting = False
-                    }
-            in
-                ( { model | sec = sec }, Cmd.none )
-
-        LoginForm ->
-            let
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec'
-                        | connecting = True
-                    }
-            in
-                ( { model | sec = sec }, Cmd.none )
-
-        CancelLoginForm ->
-            let
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec'
-                        | connecting = False
-                        , user = Nothing
-                    }
-            in
-                ( { model
-                    | sec = sec
-                  }
-                , Cmd.none
-                )
-
-        ChangePassword newPassword ->
-            let
-                currentUserid =
-                    userid model.sec
-
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec'
-                        | user = Just (User currentUserid newPassword)
-                    }
-            in
-                ( { model
-                    | sec = sec
-                  }
-                , Cmd.none
-                )
-
-        ChangeUserId newUserid ->
-            let
-                currentPassword =
-                    password model.sec
-
-                sec' =
-                    model.sec
-
-                sec =
-                    { sec'
-                        | user = Just (User newUserid currentPassword)
-                    }
-            in
-                ( { model
-                    | sec = sec
-                  }
-                , Cmd.none
-                )
 
 
 update : Msg -> Model -> Return Msg Model
@@ -332,10 +168,13 @@ update msg model =
 
         LoginMsg msg' ->
             let
-                ( model', cmd' ) =
-                    loginUpdate msg' model
+                ( sec', cmd' ) =
+                    loginUpdate msg' model.sec
+
+                model =
+                    { model | sec = sec' }
             in
-                ( model', Cmd.map LoginMsg cmd' )
+                ( model, Cmd.map LoginMsg cmd' )
 
 
 
@@ -355,6 +194,16 @@ subscriptions model =
     withNamespace "plone"
 type alias Mdl =
     Material.Model
+
+
+isLoggedIn : Model -> Bool
+isLoggedIn model =
+    case model.sec.token of
+        Just token ->
+            True
+
+        Nothing ->
+            False
 
 
 view : Model -> Html.Html Msg
@@ -574,33 +423,6 @@ fetchDocumentTitle model =
 ploneUrl : Model -> String -> String
 ploneUrl model path =
     model.baseUrl ++ path
-
-
-getToken : Model -> Cmd LoginMessage
-getToken model =
-    Task.perform LoginFail
-        LoginSucceed
-        (fetchToken model)
-
-
-decodeToken : Json.Decoder String
-decodeToken =
-    Json.at [ "token" ] Json.string
-
-
-fetchToken : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-fetchToken model =
-    let
-        url =
-            ploneUrl model "@login"
-    in
-        HttpBuilder.post url
-            |> HttpBuilder.withHeaders
-                [ ( "Accept", "application/json" )
-                , ( "Content-Type", "application/json" )
-                ]
-            |> HttpBuilder.withJsonBody (login (userid model.sec) (password model.sec))
-            |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
 
 
 postField : Field -> Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
