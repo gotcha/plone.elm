@@ -54,15 +54,20 @@ type alias Model =
     { title : String
     , description : String
     , user : Maybe User
-    , logging : Bool
     , inline_edit : Field
     , debug : Bool
-    , token : Maybe String
+    , sec : Security
     , baseUrl :
         String
     , mdl :
         Material.Model
         -- Boilerplate: model store for any and all Mdl components you use.
+    }
+
+
+type alias Security =
+    { token : Maybe String
+    , connecting : Bool
     }
 
 
@@ -79,15 +84,20 @@ init =
         mdl =
             Material.model
 
+        sec =
+            { token = Nothing
+            , connecting = False
+            }
+
         initial_model =
-            Model "" "" Nothing False NoField False Nothing "http://localhost:8080/Plone/" mdl
+            Model "" "" Nothing NoField False sec "http://localhost:8080/Plone/" mdl
     in
         update Fetch initial_model
 
 
 isLoggedIn : Model -> Bool
 isLoggedIn model =
-    case model.token of
+    case model.sec.token of
         Just token ->
             True
 
@@ -185,15 +195,27 @@ update msg model =
             )
 
         Logout ->
-            ( { model | token = Nothing }, Cmd.none )
+            let
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec' | token = Nothing }
+            in
+                ( { model | sec = sec }, Cmd.none )
 
         LoginSucceed response ->
-            ( { model
-                | token = Just response.data
-                , logging = False
-              }
-            , Cmd.none
-            )
+            let
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec'
+                        | token = Just response.data
+                        , connecting = False
+                    }
+            in
+                ( { model | sec = sec }, Cmd.none )
 
         UpdateFail _ ->
             ( model, Cmd.none )
@@ -202,13 +224,45 @@ update msg model =
             ( model, Cmd.none )
 
         LoginFail _ ->
-            ( { model | logging = False }, Cmd.none )
+            let
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec'
+                        | connecting = False
+                    }
+            in
+                ( { model | sec = sec }, Cmd.none )
 
         LoginForm ->
-            ( { model | logging = True }, Cmd.none )
+            let
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec'
+                        | connecting = True
+                    }
+            in
+                ( { model | sec = sec }, Cmd.none )
 
         CancelLoginForm ->
-            ( { model | logging = False, user = Nothing }, Cmd.none )
+            let
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec'
+                        | connecting = False
+                    }
+            in
+                ( { model
+                    | sec = sec
+                    , user = Nothing
+                  }
+                , Cmd.none
+                )
 
         ChangePassword newPassword ->
             let
@@ -269,7 +323,7 @@ type alias Mdl =
 
 view : Model -> Html.Html Msg
 view model =
-    if model.logging then
+    if model.sec.connecting then
         loginFormView model
             |> Material.Scheme.top
     else
@@ -509,7 +563,7 @@ postField : Field -> Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.
 postField field model =
     let
         token =
-            case model.token of
+            case model.sec.token of
                 Just token ->
                     token
 
