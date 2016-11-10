@@ -53,7 +53,6 @@ type Field
 type alias Model =
     { title : String
     , description : String
-    , user : Maybe User
     , inline_edit : Field
     , debug : Bool
     , sec : Security
@@ -68,6 +67,7 @@ type alias Model =
 type alias Security =
     { token : Maybe String
     , connecting : Bool
+    , user : Maybe User
     }
 
 
@@ -87,10 +87,11 @@ init =
         sec =
             { token = Nothing
             , connecting = False
+            , user = Nothing
             }
 
         initial_model =
-            Model "" "" Nothing NoField False sec "http://localhost:8080/Plone/" mdl
+            Model "" "" NoField False sec "http://localhost:8080/Plone/" mdl
     in
         update Fetch initial_model
 
@@ -107,7 +108,7 @@ isLoggedIn model =
 
 userid : Model -> String
 userid model =
-    case model.user of
+    case model.sec.user of
         Just user ->
             user.userid
 
@@ -117,7 +118,7 @@ userid model =
 
 password : Model -> String
 password model =
-    case model.user of
+    case model.sec.user of
         Just user ->
             user.password
 
@@ -152,47 +153,32 @@ type Msg
     = Fetch
     | FetchSucceed (HttpBuilder.Response Page)
     | FetchFail (HttpBuilder.Error String)
-    | LoginForm
-    | CancelLoginForm
-    | ChangePassword String
-    | ChangeUserId String
     | Change Field String
     | Update Field
-    | LoggingIn
-    | Logout
-    | LoginSucceed (HttpBuilder.Response String)
-    | LoginFail (HttpBuilder.Error String)
     | UpdateSucceed (HttpBuilder.Response String)
     | UpdateFail (HttpBuilder.Error String)
     | Mdl (Material.Msg Msg)
     | InlineEdit Field
     | CancelInlineEdit
+    | LoginMsg LoginMessage
 
 
-update : Msg -> Model -> Return Msg Model
-update msg model =
-    case Debug.log "model" msg of
-        Fetch ->
-            ( model, (getDocumentTitle model) )
+type LoginMessage
+    = LoginForm
+    | CancelLoginForm
+    | ChangePassword String
+    | ChangeUserId String
+    | LoggingIn
+    | Logout
+    | LoginSucceed (HttpBuilder.Response String)
+    | LoginFail (HttpBuilder.Error String)
 
-        FetchSucceed response ->
-            ( { model
-                | title = response.data.title
-                , description = response.data.description
-              }
-            , Cmd.none
-            )
 
-        FetchFail _ ->
-            ( model, Cmd.none )
-
+loginUpdate : LoginMessage -> Model -> ( Model, Cmd LoginMessage )
+loginUpdate msg model =
+    case msg of
         LoggingIn ->
             ( model, getToken model )
-
-        Update field ->
-            ( { model | inline_edit = NoField }
-            , updateField field model
-            )
 
         Logout ->
             let
@@ -216,12 +202,6 @@ update msg model =
                     }
             in
                 ( { model | sec = sec }, Cmd.none )
-
-        UpdateFail _ ->
-            ( model, Cmd.none )
-
-        UpdateSucceed _ ->
-            ( model, Cmd.none )
 
         LoginFail _ ->
             let
@@ -255,11 +235,11 @@ update msg model =
                 sec =
                     { sec'
                         | connecting = False
+                        , user = Nothing
                     }
             in
                 ( { model
                     | sec = sec
-                    , user = Nothing
                   }
                 , Cmd.none
                 )
@@ -268,8 +248,18 @@ update msg model =
             let
                 currentUserid =
                     userid model
+
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec'
+                        | user = Just (User currentUserid newPassword)
+                    }
             in
-                ( { model | user = Just (User currentUserid newPassword) }
+                ( { model
+                    | sec = sec
+                  }
                 , Cmd.none
                 )
 
@@ -277,19 +267,54 @@ update msg model =
             let
                 currentPassword =
                     password model
+
+                sec' =
+                    model.sec
+
+                sec =
+                    { sec'
+                        | user = Just (User newUserid currentPassword)
+                    }
             in
-                ( { model | user = Just (User newUserid currentPassword) }
+                ( { model
+                    | sec = sec
+                  }
                 , Cmd.none
                 )
+
+
+update : Msg -> Model -> Return Msg Model
+update msg model =
+    case Debug.log "model" msg of
+        Fetch ->
+            ( model, (getDocumentTitle model) )
+
+        FetchSucceed response ->
+            ( { model
+                | title = response.data.title
+                , description = response.data.description
+              }
+            , Cmd.none
+            )
+
+        FetchFail _ ->
+            ( model, Cmd.none )
+
+        Update field ->
+            ( { model | inline_edit = NoField }
+            , updateField field model
+            )
+
+        UpdateFail _ ->
+            ( model, Cmd.none )
+
+        UpdateSucceed _ ->
+            ( model, Cmd.none )
 
         Change field value ->
             ( changeField field value model
             , Cmd.none
             )
-
-        -- When the `Mdl` messages come through, update appropriately.
-        Mdl msg' ->
-            Material.update msg' model
 
         InlineEdit field ->
             ( { model | inline_edit = field }
@@ -300,6 +325,17 @@ update msg model =
             ( { model | inline_edit = NoField }
             , Cmd.none
             )
+
+        -- When the `Mdl` messages come through, update appropriately.
+        Mdl msg' ->
+            Material.update msg' model
+
+        LoginMsg msg' ->
+            let
+                ( model', cmd' ) =
+                    loginUpdate msg' model
+            in
+                ( model', Cmd.map LoginMsg cmd' )
 
 
 
@@ -331,6 +367,14 @@ view model =
             |> Material.Scheme.top
 
 
+userOnInput string =
+    LoginMsg (ChangeUserId string)
+
+
+passwordOnInput string =
+    LoginMsg (ChangePassword string)
+
+
 loginFormView model =
     div []
         [ h2 [] [ text "Login Form" ]
@@ -341,7 +385,7 @@ loginFormView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput ChangeUserId
+            , Textfield.onInput userOnInput
             ]
         , Textfield.render Mdl
             [ 1 ]
@@ -349,10 +393,10 @@ loginFormView model =
             [ Textfield.label "Password"
             , Textfield.floatingLabel
             , Textfield.password
-            , Textfield.onInput ChangePassword
+            , Textfield.onInput passwordOnInput
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoggingIn ] [ text "Login" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelLoginForm ] [ text "Cancel" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg LoggingIn) ] [ text "Login" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg CancelLoginForm) ] [ text "Cancel" ]
         , debugView model
         ]
 
@@ -482,10 +526,10 @@ loginView model =
         div [ class [ PloneCss.NavBar ] ]
             [ Icon.i "person"
             , text (userid model)
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick Logout ] [ text "Logout" ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Logout) ] [ text "Logout" ]
             ]
     else
-        Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoginForm ] [ text "Login" ]
+        Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg LoginForm) ] [ text "Login" ]
 
 
 
@@ -532,7 +576,7 @@ ploneUrl model path =
     model.baseUrl ++ path
 
 
-getToken : Model -> Cmd Msg
+getToken : Model -> Cmd LoginMessage
 getToken model =
     Task.perform LoginFail
         LoginSucceed
