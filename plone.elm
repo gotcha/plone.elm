@@ -106,9 +106,9 @@ isLoggedIn model =
             False
 
 
-userid : Model -> String
-userid model =
-    case model.sec.user of
+userid : Security -> String
+userid sec =
+    case sec.user of
         Just user ->
             user.userid
 
@@ -116,9 +116,9 @@ userid model =
             "anonymous"
 
 
-password : Model -> String
-password model =
-    case model.sec.user of
+password : Security -> String
+password sec =
+    case sec.user of
         Just user ->
             user.password
 
@@ -247,7 +247,7 @@ loginUpdate msg model =
         ChangePassword newPassword ->
             let
                 currentUserid =
-                    userid model
+                    userid model.sec
 
                 sec' =
                     model.sec
@@ -266,7 +266,7 @@ loginUpdate msg model =
         ChangeUserId newUserid ->
             let
                 currentPassword =
-                    password model
+                    password model.sec
 
                 sec' =
                     model.sec
@@ -525,7 +525,7 @@ loginView model =
     if isLoggedIn model then
         div [ class [ PloneCss.NavBar ] ]
             [ Icon.i "person"
-            , text (userid model)
+            , text (userid model.sec)
             , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Logout) ] [ text "Logout" ]
             ]
     else
@@ -599,7 +599,7 @@ fetchToken model =
                 [ ( "Accept", "application/json" )
                 , ( "Content-Type", "application/json" )
                 ]
-            |> HttpBuilder.withJsonBody (login (userid model) (password model))
+            |> HttpBuilder.withJsonBody (login (userid model.sec) (password model.sec))
             |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
 
 
