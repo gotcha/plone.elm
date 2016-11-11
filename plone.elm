@@ -52,16 +52,20 @@ type Field
 
 
 type alias Model =
-    { title : String
-    , description : String
-    , inline_edit : Field
-    , debug : Bool
+    { page : PageModel
     , sec : Security
-    , baseUrl :
-        String
     , mdl :
         Material.Model
         -- Boilerplate: model store for any and all Mdl components you use.
+    , debug : Bool
+    }
+
+
+type alias PageModel =
+    { title : String
+    , description : String
+    , inline_edit : Field
+    , baseUrl : String
     }
 
 
@@ -83,22 +87,36 @@ init =
             , baseUrl = localUrl
             }
 
+        page =
+            { title = ""
+            , description = ""
+            , inline_edit = NoField
+            , baseUrl = localUrl
+            }
+
         initial_model =
-            Model "" "" NoField False sec localUrl mdl
+            Model page sec mdl False
     in
         update Fetch initial_model
 
 
 changeField field value model =
-    case field of
-        Title ->
-            { model | title = value }
+    let
+        page' =
+            model.page
 
-        Description ->
-            { model | description = value }
+        page =
+            case field of
+                Title ->
+                    { page' | title = value }
 
-        NoField ->
-            model
+                Description ->
+                    { page' | description = value }
+
+                NoField ->
+                    page'
+    in
+        { model | page = page }
 
 
 
@@ -106,17 +124,17 @@ changeField field value model =
 
 
 type Msg
-    = Fetch
+    = Mdl (Material.Msg Msg)
+    | LoginMsg LoginMessage
+    | Fetch
     | FetchSucceed (HttpBuilder.Response Page)
     | FetchFail (HttpBuilder.Error String)
     | Change Field String
     | Update Field
     | UpdateSucceed (HttpBuilder.Response String)
     | UpdateFail (HttpBuilder.Error String)
-    | Mdl (Material.Msg Msg)
     | InlineEdit Field
     | CancelInlineEdit
-    | LoginMsg LoginMessage
 
 
 update : Msg -> Model -> Return Msg Model
@@ -126,20 +144,32 @@ update msg model =
             ( model, (getDocumentTitle model) )
 
         FetchSucceed response ->
-            ( { model
-                | title = response.data.title
-                , description = response.data.description
-              }
-            , Cmd.none
-            )
+            let
+                page' =
+                    model.page
+
+                page =
+                    { page'
+                        | title = response.data.title
+                        , description = response.data.description
+                    }
+            in
+                ( { model | page = page }, Cmd.none )
 
         FetchFail _ ->
             ( model, Cmd.none )
 
         Update field ->
-            ( { model | inline_edit = NoField }
-            , updateField field model
-            )
+            let
+                page' =
+                    model.page
+
+                page =
+                    { page' | inline_edit = NoField }
+            in
+                ( { model | page = page }
+                , updateField field model
+                )
 
         UpdateFail _ ->
             ( model, Cmd.none )
@@ -153,14 +183,28 @@ update msg model =
             )
 
         InlineEdit field ->
-            ( { model | inline_edit = field }
-            , Cmd.none
-            )
+            let
+                page' =
+                    model.page
+
+                page =
+                    { page' | inline_edit = field }
+            in
+                ( { model | page = page }
+                , Cmd.none
+                )
 
         CancelInlineEdit ->
-            ( { model | inline_edit = NoField }
-            , Cmd.none
-            )
+            let
+                page' =
+                    model.page
+
+                page =
+                    { page' | inline_edit = NoField }
+            in
+                ( { model | page = page }
+                , Cmd.none
+                )
 
         -- When the `Mdl` messages come through, update appropriately.
         Mdl msg' ->
@@ -282,11 +326,11 @@ titleView model =
                 text ""
 
         titleWidget =
-            if model.inline_edit == Title then
+            if model.page.inline_edit == Title then
                 updateSnippet
             else
                 h2 []
-                    [ text model.title
+                    [ text model.page.title
                     , editButton
                     ]
     in
@@ -303,7 +347,7 @@ updateTitleView model =
             , Textfield.autofocus
             , Textfield.text'
             , Textfield.onInput (Change Title)
-            , Textfield.value model.title
+            , Textfield.value model.page.title
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (Update Title) ] [ text "Update" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
@@ -331,11 +375,11 @@ descriptionView model =
                 text ""
 
         descriptionWidget =
-            if model.inline_edit == Description then
+            if model.page.inline_edit == Description then
                 updateSnippet
             else
                 p []
-                    [ text model.description
+                    [ text model.page.description
                     , editButton
                     ]
     in
@@ -352,7 +396,7 @@ updateDescriptionView model =
             , Textfield.autofocus
             , Textfield.text'
             , Textfield.onInput (Change Description)
-            , Textfield.value model.description
+            , Textfield.value model.page.description
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (Update Description) ] [ text "Update" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
@@ -422,7 +466,7 @@ fetchDocumentTitle model =
 
 ploneUrl : Model -> String -> String
 ploneUrl model path =
-    model.baseUrl ++ path
+    model.page.baseUrl ++ path
 
 
 postField : Field -> Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
@@ -465,10 +509,10 @@ jsonField field model =
         value =
             case field of
                 Title ->
-                    model.title
+                    model.page.title
 
                 Description ->
-                    model.description
+                    model.page.description
 
                 NoField ->
                     ""
