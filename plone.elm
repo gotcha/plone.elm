@@ -73,7 +73,7 @@ localUrl =
     "http://localhost:8080/Plone/"
 
 
-init : Return Msg Model
+init : ( Model, Cmd Msg )
 init =
     let
         -- Boilerplate: Always use this initial Mdl model store.
@@ -95,28 +95,25 @@ init =
             }
 
         initial_model =
-            Model page sec mdl False
+            { page = page
+            , sec = sec
+            , mdl = mdl
+            , debug = False
+            }
     in
-        update Fetch initial_model
+        update (PageMsg Fetch) initial_model
 
 
-changeField field value model =
-    let
-        page' =
-            model.page
+changeField field value page =
+    case field of
+        Title ->
+            { page | title = value }
 
-        page =
-            case field of
-                Title ->
-                    { page' | title = value }
+        Description ->
+            { page | description = value }
 
-                Description ->
-                    { page' | description = value }
-
-                NoField ->
-                    page'
-    in
-        { model | page = page }
+        NoField ->
+            page
 
 
 
@@ -126,7 +123,11 @@ changeField field value model =
 type Msg
     = Mdl (Material.Msg Msg)
     | LoginMsg LoginMessage
-    | Fetch
+    | PageMsg PageMessage
+
+
+type PageMessage
+    = Fetch
     | FetchSucceed (HttpBuilder.Response Page)
     | FetchFail (HttpBuilder.Error String)
     | Change Field String
@@ -137,76 +138,63 @@ type Msg
     | CancelInlineEdit
 
 
-update : Msg -> Model -> Return Msg Model
-update msg model =
-    case Debug.log "model" msg of
+pageUpdate : PageMessage -> PageModel -> Security -> ( PageModel, Cmd PageMessage )
+pageUpdate msg page sec =
+    case msg of
         Fetch ->
-            ( model, (getDocumentTitle model) )
+            ( page, (getDocumentTitle page) )
 
         FetchSucceed response ->
             let
                 page' =
-                    model.page
-
-                page =
-                    { page'
+                    { page
                         | title = response.data.title
                         , description = response.data.description
                     }
             in
-                ( { model | page = page }, Cmd.none )
+                ( page', Cmd.none )
 
         FetchFail _ ->
-            ( model, Cmd.none )
+            ( page, Cmd.none )
 
         Update field ->
             let
                 page' =
-                    model.page
-
-                page =
-                    { page' | inline_edit = NoField }
+                    { page | inline_edit = NoField }
             in
-                ( { model | page = page }
-                , updateField field model
+                ( page
+                , updateField field page sec
                 )
 
         UpdateFail _ ->
-            ( model, Cmd.none )
+            ( page, Cmd.none )
 
         UpdateSucceed _ ->
-            ( model, Cmd.none )
+            ( page, Cmd.none )
 
         Change field value ->
-            ( changeField field value model
+            ( changeField field value page
             , Cmd.none
             )
 
         InlineEdit field ->
             let
                 page' =
-                    model.page
-
-                page =
-                    { page' | inline_edit = field }
+                    { page | inline_edit = field }
             in
-                ( { model | page = page }
-                , Cmd.none
-                )
+                ( page', Cmd.none )
 
         CancelInlineEdit ->
             let
                 page' =
-                    model.page
-
-                page =
-                    { page' | inline_edit = NoField }
+                    { page | inline_edit = NoField }
             in
-                ( { model | page = page }
-                , Cmd.none
-                )
+                ( page', Cmd.none )
 
-        -- When the `Mdl` messages come through, update appropriately.
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case Debug.log "model" msg of
         Mdl msg' ->
             Material.update msg' model
 
@@ -215,10 +203,20 @@ update msg model =
                 ( sec', cmd' ) =
                     loginUpdate msg' model.sec
 
-                model =
+                model' =
                     { model | sec = sec' }
             in
-                ( model, Cmd.map LoginMsg cmd' )
+                ( model', Cmd.map LoginMsg cmd' )
+
+        PageMsg msg' ->
+            let
+                ( page', cmd' ) =
+                    pageUpdate msg' model.page model.sec
+
+                model' =
+                    { model | page = page' }
+            in
+                ( model', Cmd.map PageMsg cmd' )
 
 
 
@@ -313,7 +311,7 @@ titleView model =
                     [ 0 ]
                     model.mdl
                     [ Button.icon
-                    , Button.onClick (InlineEdit Title)
+                    , Button.onClick (PageMsg (InlineEdit Title))
                     ]
                     [ Icon.i "mode_edit" ]
             else
@@ -337,6 +335,10 @@ titleView model =
         div [] [ titleWidget ]
 
 
+titleOnInput string =
+    PageMsg (Change Title string)
+
+
 updateTitleView model =
     div [ Attr.class "updateTitleWidget" ]
         [ Textfield.render Mdl
@@ -346,11 +348,11 @@ updateTitleView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput (Change Title)
+            , Textfield.onInput titleOnInput
             , Textfield.value model.page.title
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (Update Title) ] [ text "Update" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Update Title)) ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg CancelInlineEdit) ] [ text "Cancel" ]
         ]
 
 
@@ -362,7 +364,7 @@ descriptionView model =
                     [ 0 ]
                     model.mdl
                     [ Button.icon
-                    , Button.onClick (InlineEdit Description)
+                    , Button.onClick (PageMsg (InlineEdit Description))
                     ]
                     [ Icon.i "mode_edit" ]
             else
@@ -386,6 +388,10 @@ descriptionView model =
         div [] [ descriptionWidget ]
 
 
+descriptionOnInput string =
+    PageMsg (Change Description string)
+
+
 updateDescriptionView model =
     div [ Attr.class "updateDescriptionWidget" ]
         [ Textfield.render Mdl
@@ -395,11 +401,11 @@ updateDescriptionView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput (Change Description)
+            , Textfield.onInput descriptionOnInput
             , Textfield.value model.page.description
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (Update Description) ] [ text "Update" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick CancelInlineEdit ] [ text "Cancel" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Update Description)) ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg CancelInlineEdit) ] [ text "Cancel" ]
         ]
 
 
@@ -429,11 +435,11 @@ loginView model =
 -- HTTP
 
 
-getDocumentTitle : Model -> Cmd Msg
-getDocumentTitle model =
+getDocumentTitle : PageModel -> Cmd PageMessage
+getDocumentTitle page =
     Task.perform FetchFail
         FetchSucceed
-        (fetchDocumentTitle model)
+        (fetchDocumentTitle page)
 
 
 type alias Page =
@@ -453,11 +459,11 @@ decodePage =
             decodeDescription
 
 
-fetchDocumentTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response Page)
-fetchDocumentTitle model =
+fetchDocumentTitle : PageModel -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response Page)
+fetchDocumentTitle page =
     let
         url =
-            ploneUrl model "front-page"
+            page.baseUrl ++ "front-page"
     in
         HttpBuilder.get url
             |> HttpBuilder.withHeader "Accept" "application/json"
@@ -469,11 +475,11 @@ ploneUrl model path =
     model.page.baseUrl ++ path
 
 
-postField : Field -> Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-postField field model =
+postField : Field -> PageModel -> Security -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+postField field page sec =
     let
         token =
-            case model.sec.token of
+            case sec.token of
                 Just token ->
                     token
 
@@ -481,7 +487,7 @@ postField field model =
                     ""
 
         url =
-            ploneUrl model "front-page"
+            page.baseUrl ++ "front-page"
     in
         HttpBuilder.patch url
             |> HttpBuilder.withHeaders
@@ -489,11 +495,11 @@ postField field model =
                 , ( "Content-Type", "application/json" )
                 , ( "Authorization", "Bearer " ++ token )
                 ]
-            |> HttpBuilder.withJsonBody (jsonField field model)
+            |> HttpBuilder.withJsonBody (jsonField field page)
             |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
 
 
-jsonField field model =
+jsonField field page =
     let
         name =
             case field of
@@ -509,10 +515,10 @@ jsonField field model =
         value =
             case field of
                 Title ->
-                    model.page.title
+                    page.title
 
                 Description ->
-                    model.page.description
+                    page.description
 
                 NoField ->
                     ""
@@ -520,8 +526,8 @@ jsonField field model =
         (object [ ( name, string value ) ])
 
 
-updateField : Field -> Model -> Cmd Msg
-updateField field model =
+updateField : Field -> PageModel -> Security -> Cmd PageMessage
+updateField field page sec =
     Task.perform UpdateFail
         UpdateSucceed
-        (postField field model)
+        (postField field page sec)
