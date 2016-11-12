@@ -5,6 +5,7 @@ import Json.Decode as Json
 import Json.Decode exposing ((:=))
 import Json.Encode exposing (object, string)
 import Plone.Login as Login
+import Return exposing (Return, singleton, command)
 import Task
 
 
@@ -53,69 +54,50 @@ type Msg
     | CancelInlineEdit
 
 
-update : Msg -> Model -> Login.Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> Login.Model -> Return Msg Model
 update msg model login =
     case msg of
         Fetch ->
-            ( model, (getDocumentTitle model) )
+            singleton model
+                |> command (fetchCmd model)
 
         FetchSucceed response ->
-            let
-                model' =
-                    { model
-                        | title = response.data.title
-                        , description = response.data.description
-                    }
-            in
-                ( model', Cmd.none )
+            singleton
+                { model
+                    | title = response.data.title
+                    , description = response.data.description
+                }
 
         FetchFail _ ->
-            ( model, Cmd.none )
+            singleton model
 
         Update field ->
-            let
-                model' =
-                    { model | inline_edit = NoField }
-            in
-                ( model'
-                , updateField field model login
-                )
+            singleton { model | inline_edit = NoField }
+                |> command (updateFieldCmd field model login)
 
         UpdateFail _ ->
-            ( model, Cmd.none )
+            singleton model
 
         UpdateSucceed _ ->
-            ( model, Cmd.none )
+            singleton model
 
         Change field value ->
-            ( changeField field value model
-            , Cmd.none
-            )
+            singleton (changeField field value model)
 
         InlineEdit field ->
-            let
-                model' =
-                    { model | inline_edit = field }
-            in
-                ( model', Cmd.none )
+            singleton { model | inline_edit = field }
 
         CancelInlineEdit ->
-            let
-                model' =
-                    { model | inline_edit = NoField }
-            in
-                ( model', Cmd.none )
+            singleton { model | inline_edit = NoField }
 
 
 
 -- HTTP
 
 
-getDocumentTitle : Model -> Cmd Msg
-getDocumentTitle model =
-    Task.perform FetchFail
-        FetchSucceed
-        (fetchDocumentTitle model)
+fetchCmd : Model -> Cmd Msg
+fetchCmd model =
+    Task.perform FetchFail FetchSucceed (fetchRequest model)
 
 
 type alias JsonPage =
@@ -135,8 +117,8 @@ decodePage =
             decodeDescription
 
 
-fetchDocumentTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response JsonPage)
-fetchDocumentTitle model =
+fetchRequest : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response JsonPage)
+fetchRequest model =
     let
         url =
             model.baseUrl ++ "front-page"
@@ -146,16 +128,11 @@ fetchDocumentTitle model =
             |> HttpBuilder.send (HttpBuilder.jsonReader decodePage) HttpBuilder.stringReader
 
 
-postField : Field -> Model -> Login.Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-postField field model login =
+updateFieldPost : Field -> Model -> Login.Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+updateFieldPost field model login =
     let
         token =
-            case login.token of
-                Just token ->
-                    token
-
-                Nothing ->
-                    ""
+            Maybe.withDefault "" login.token
 
         url =
             model.baseUrl ++ "front-page"
@@ -197,8 +174,8 @@ jsonField field model =
         (object [ ( name, string value ) ])
 
 
-updateField : Field -> Model -> Login.Model -> Cmd Msg
-updateField field model login =
+updateFieldCmd : Field -> Model -> Login.Model -> Cmd Msg
+updateFieldCmd field model login =
     Task.perform UpdateFail
         UpdateSucceed
-        (postField field model login)
+        (updateFieldPost field model login)

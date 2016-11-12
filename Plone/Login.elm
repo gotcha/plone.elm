@@ -3,6 +3,7 @@ module Plone.Login exposing (..)
 import Json.Encode exposing (object, string)
 import Json.Decode as Json
 import HttpBuilder
+import Return exposing (Return, singleton, command)
 import Task
 
 
@@ -60,42 +61,40 @@ type Msg
     | CancelLoginForm
     | ChangePassword String
     | ChangeUserId String
-    | LoggingIn
+    | GetToken
     | Logout
     | LoginSucceed (HttpBuilder.Response String)
     | LoginFail (HttpBuilder.Error String)
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> Return Msg Model
 update msg model =
     case msg of
-        LoggingIn ->
-            ( model, getToken model )
+        GetToken ->
+            singleton model |> command (getTokenCmd model)
 
         Logout ->
-            ( { model | token = Nothing }, Cmd.none )
+            singleton { model | token = Nothing }
 
         LoginSucceed response ->
-            ( { model
-                | token = Just response.data
-                , connecting = False
-              }
-            , Cmd.none
-            )
+            singleton
+                { model
+                    | token = Just response.data
+                    , connecting = False
+                }
 
         LoginFail _ ->
-            ( { model | connecting = False }, Cmd.none )
+            singleton { model | connecting = False }
 
         LoginForm ->
-            ( { model | connecting = True }, Cmd.none )
+            singleton { model | connecting = True }
 
         CancelLoginForm ->
-            ( { model
-                | user = Nothing
-                , connecting = False
-              }
-            , Cmd.none
-            )
+            singleton
+                { model
+                    | user = Nothing
+                    , connecting = False
+                }
 
         ChangePassword newPassword ->
             let
@@ -105,7 +104,7 @@ update msg model =
                 user =
                     Just (User currentUserid newPassword)
             in
-                ( { model | user = user }, Cmd.none )
+                singleton { model | user = user }
 
         ChangeUserId newUserid ->
             let
@@ -115,14 +114,14 @@ update msg model =
                 user =
                     Just (User newUserid currentPassword)
             in
-                ( { model | user = user }, Cmd.none )
+                singleton { model | user = user }
 
 
-getToken : Model -> Cmd Msg
-getToken model =
+getTokenCmd : Model -> Cmd Msg
+getTokenCmd model =
     Task.perform LoginFail
         LoginSucceed
-        (fetchToken model)
+        (getTokenRequest model)
 
 
 decodeToken : Json.Decoder String
@@ -130,8 +129,8 @@ decodeToken =
     Json.at [ "token" ] Json.string
 
 
-fetchToken : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-fetchToken model =
+getTokenRequest : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+getTokenRequest model =
     let
         url =
             model.baseUrl ++ "@login"

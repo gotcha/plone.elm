@@ -24,7 +24,7 @@ import Material.Options exposing (css)
 import Plone.Css as PloneCss
 import Plone.Login as Login
 import Plone.Page as Page
-import Return exposing (Return)
+import Return exposing (Return, mapBoth)
 
 
 main =
@@ -54,7 +54,7 @@ localUrl =
     "http://localhost:8080/Plone/"
 
 
-init : ( Model, Cmd Msg )
+init : Return Msg Model
 init =
     let
         -- Boilerplate: Always use this initial Mdl model store.
@@ -95,31 +95,19 @@ type Msg
     | PageMsg Page.Msg
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> Return Msg Model
 update msg model =
     case Debug.log "model" msg of
         Mdl msg' ->
             Material.update msg' model
 
         LoginMsg msg' ->
-            let
-                ( login', cmd' ) =
-                    Login.update msg' model.login
-
-                model' =
-                    { model | login = login' }
-            in
-                ( model', Cmd.map LoginMsg cmd' )
+            Login.update msg' model.login
+                |> mapBoth LoginMsg (\login -> { model | login = login })
 
         PageMsg msg' ->
-            let
-                ( page', cmd' ) =
-                    Page.update msg' model.page model.login
-
-                model' =
-                    { model | page = page' }
-            in
-                ( model', Cmd.map PageMsg cmd' )
+            Page.update msg' model.page model.login
+                |> mapBoth PageMsg (\page -> { model | page = page })
 
 
 
@@ -189,7 +177,7 @@ loginFormView model =
             , Textfield.password
             , Textfield.onInput passwordOnInput
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.LoggingIn) ] [ text "Login" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.GetToken) ] [ text "Login" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.CancelLoginForm) ] [ text "Cancel" ]
         , debugView model
         ]
