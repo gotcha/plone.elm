@@ -6,9 +6,9 @@ Edit Plone through `plone.restapi` with an Elm application
 
 * [x] use `elm-http-builder`
 * [x] use MDL components
-* [ ] use `elm-css`
+* [x] use `elm-css`
 * [x] refactor urls
-* [ ] refactor into modules
+* [x] refactor into modules
 * [ ] use `elm-test`
 * [x] use `elm-return`
 * [ ] use `navigation` to make urls and `evancz/url-parser`
