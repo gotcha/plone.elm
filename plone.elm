@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Debug
 import Html
     exposing
         ( div
@@ -10,16 +11,9 @@ import Html
         , pre
         )
 import Html.App
-import Html.Events as Events
 import Html.Attributes as Attr
-import Task
-import Http
-import Return exposing (Return)
-import Json.Decode as Json
-import Json.Decode exposing ((:=))
-import Json.Encode exposing (encode, object, string)
-import Debug
-import HttpBuilder
+import Html.CssHelpers exposing (withNamespace)
+import Html.Events as Events
 import Material
 import Material.Scheme
 import Material.Button as Button
@@ -27,9 +21,10 @@ import Material.Textfield as Textfield
 import Material.Layout as Layout
 import Material.Icon as Icon
 import Material.Options exposing (css)
-import Html.CssHelpers exposing (withNamespace)
 import Plone.Css as PloneCss
 import Plone.Login exposing (..)
+import Plone.Page exposing (..)
+import Return exposing (Return)
 
 
 main =
@@ -45,12 +40,6 @@ main =
 -- MODEL
 
 
-type Field
-    = Title
-    | Description
-    | NoField
-
-
 type alias Model =
     { page : PageModel
     , sec : Security
@@ -58,14 +47,6 @@ type alias Model =
         Material.Model
         -- Boilerplate: model store for any and all Mdl components you use.
     , debug : Bool
-    }
-
-
-type alias PageModel =
-    { title : String
-    , description : String
-    , inline_edit : Field
-    , baseUrl : String
     }
 
 
@@ -104,18 +85,6 @@ init =
         update (PageMsg Fetch) initial_model
 
 
-changeField field value page =
-    case field of
-        Title ->
-            { page | title = value }
-
-        Description ->
-            { page | description = value }
-
-        NoField ->
-            page
-
-
 
 -- UPDATE
 
@@ -124,72 +93,6 @@ type Msg
     = Mdl (Material.Msg Msg)
     | LoginMsg LoginMessage
     | PageMsg PageMessage
-
-
-type PageMessage
-    = Fetch
-    | FetchSucceed (HttpBuilder.Response Page)
-    | FetchFail (HttpBuilder.Error String)
-    | Change Field String
-    | Update Field
-    | UpdateSucceed (HttpBuilder.Response String)
-    | UpdateFail (HttpBuilder.Error String)
-    | InlineEdit Field
-    | CancelInlineEdit
-
-
-pageUpdate : PageMessage -> PageModel -> Security -> ( PageModel, Cmd PageMessage )
-pageUpdate msg page sec =
-    case msg of
-        Fetch ->
-            ( page, (getDocumentTitle page) )
-
-        FetchSucceed response ->
-            let
-                page' =
-                    { page
-                        | title = response.data.title
-                        , description = response.data.description
-                    }
-            in
-                ( page', Cmd.none )
-
-        FetchFail _ ->
-            ( page, Cmd.none )
-
-        Update field ->
-            let
-                page' =
-                    { page | inline_edit = NoField }
-            in
-                ( page
-                , updateField field page sec
-                )
-
-        UpdateFail _ ->
-            ( page, Cmd.none )
-
-        UpdateSucceed _ ->
-            ( page, Cmd.none )
-
-        Change field value ->
-            ( changeField field value page
-            , Cmd.none
-            )
-
-        InlineEdit field ->
-            let
-                page' =
-                    { page | inline_edit = field }
-            in
-                ( page', Cmd.none )
-
-        CancelInlineEdit ->
-            let
-                page' =
-                    { page | inline_edit = NoField }
-            in
-                ( page', Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -429,105 +332,3 @@ loginView model =
             ]
     else
         Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg LoginForm) ] [ text "Login" ]
-
-
-
--- HTTP
-
-
-getDocumentTitle : PageModel -> Cmd PageMessage
-getDocumentTitle page =
-    Task.perform FetchFail
-        FetchSucceed
-        (fetchDocumentTitle page)
-
-
-type alias Page =
-    { title : String
-    , description : String
-    }
-
-
-decodePage : Json.Decoder Page
-decodePage =
-    let
-        decodeDescription =
-            Json.at [ "description", "data" ] Json.string
-    in
-        Json.object2 Page
-            ("title" := Json.string)
-            decodeDescription
-
-
-fetchDocumentTitle : PageModel -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response Page)
-fetchDocumentTitle page =
-    let
-        url =
-            page.baseUrl ++ "front-page"
-    in
-        HttpBuilder.get url
-            |> HttpBuilder.withHeader "Accept" "application/json"
-            |> HttpBuilder.send (HttpBuilder.jsonReader decodePage) HttpBuilder.stringReader
-
-
-ploneUrl : Model -> String -> String
-ploneUrl model path =
-    model.page.baseUrl ++ path
-
-
-postField : Field -> PageModel -> Security -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-postField field page sec =
-    let
-        token =
-            case sec.token of
-                Just token ->
-                    token
-
-                Nothing ->
-                    ""
-
-        url =
-            page.baseUrl ++ "front-page"
-    in
-        HttpBuilder.patch url
-            |> HttpBuilder.withHeaders
-                [ ( "Accept", "application/json" )
-                , ( "Content-Type", "application/json" )
-                , ( "Authorization", "Bearer " ++ token )
-                ]
-            |> HttpBuilder.withJsonBody (jsonField field page)
-            |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
-
-
-jsonField field page =
-    let
-        name =
-            case field of
-                Title ->
-                    "title"
-
-                Description ->
-                    "description"
-
-                NoField ->
-                    "no_field"
-
-        value =
-            case field of
-                Title ->
-                    page.title
-
-                Description ->
-                    page.description
-
-                NoField ->
-                    ""
-    in
-        (object [ ( name, string value ) ])
-
-
-updateField : Field -> PageModel -> Security -> Cmd PageMessage
-updateField field page sec =
-    Task.perform UpdateFail
-        UpdateSucceed
-        (postField field page sec)
