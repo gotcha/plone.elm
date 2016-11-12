@@ -5,6 +5,7 @@ import Json.Decode as Json
 import Json.Decode exposing ((:=))
 import Json.Encode exposing (object, string)
 import Plone.Login as Login
+import RemoteData exposing (WebData)
 import Return exposing (Return, singleton, command)
 import Task
 
@@ -19,8 +20,8 @@ type Field
 
 
 type alias Model =
-    { title : String
-    , description : String
+    { title : WebData String
+    , description : WebData String
     , inline_edit : Field
     , baseUrl : String
     }
@@ -29,10 +30,10 @@ type alias Model =
 changeField field value model =
     case field of
         Title ->
-            { model | title = value }
+            { model | title = RemoteData.Success value }
 
         Description ->
-            { model | description = value }
+            { model | description = RemoteData.Success value }
 
         NoField ->
             model
@@ -64,8 +65,8 @@ update msg model login =
         FetchSucceed response ->
             singleton
                 { model
-                    | title = response.data.title
-                    , description = response.data.description
+                    | title = RemoteData.Success response.data.title
+                    , description = RemoteData.Success response.data.description
                 }
 
         FetchFail _ ->
@@ -163,10 +164,20 @@ jsonField field model =
         value =
             case field of
                 Title ->
-                    model.title
+                    case model.title of
+                        RemoteData.Success value ->
+                            value
+
+                        _ ->
+                            ""
 
                 Description ->
-                    model.description
+                    case model.description of
+                        RemoteData.Success value ->
+                            value
+
+                        _ ->
+                            ""
 
                 NoField ->
                     ""

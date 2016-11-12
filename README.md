@@ -12,7 +12,7 @@ Edit Plone through `plone.restapi` with an Elm application
 * [ ] use `elm-test`
 * [x] use `elm-return`
 * [ ] use `navigation` to make urls and `evancz/url-parser`
-* [ ] use `remote data`
+* [x] use `RemoteData`
 * [ ] better UI
   - [x] initialize title on load
   - [x] use layout to move login button to top right

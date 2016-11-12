@@ -24,6 +24,7 @@ import Material.Options exposing (css)
 import Plone.Css as PloneCss
 import Plone.Login as Login
 import Plone.Page as Page
+import RemoteData
 import Return exposing (Return, mapBoth)
 
 
@@ -69,8 +70,8 @@ init =
             }
 
         page =
-            { title = ""
-            , description = ""
+            { title = RemoteData.Loading
+            , description = RemoteData.Loading
             , inline_edit = Page.NoField
             , baseUrl = localUrl
             }
@@ -207,32 +208,52 @@ titleView model =
                 text ""
 
         titleWidget =
-            if model.page.inline_edit == Page.Title then
-                updateSnippet
-            else
-                h2 []
-                    [ text model.page.title
-                    , editButton
-                    ]
+            case model.page.title of
+                RemoteData.Success value ->
+                    if model.page.inline_edit == Page.Title then
+                        updateSnippet
+                    else
+                        h2 []
+                            [ text value
+                            , editButton
+                            ]
+
+                RemoteData.Failure err ->
+                    text ("Error: " ++ toString err)
+
+                RemoteData.NotAsked ->
+                    text ""
+
+                RemoteData.Loading ->
+                    text "Loading..."
     in
         div [] [ titleWidget ]
 
 
 updateTitleView model =
-    div [ Attr.class "updateTitleWidget" ]
-        [ Textfield.render Mdl
-            [ 0 ]
-            model.mdl
-            [ Textfield.label "Title"
-            , Textfield.floatingLabel
-            , Textfield.autofocus
-            , Textfield.text'
-            , Textfield.onInput (\str -> PageMsg (Page.Change Page.Title str))
-            , Textfield.value model.page.title
+    let
+        title =
+            case model.page.title of
+                RemoteData.Success value ->
+                    value
+
+                _ ->
+                    ""
+    in
+        div [ Attr.class "updateTitleWidget" ]
+            [ Textfield.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Textfield.label "Title"
+                , Textfield.floatingLabel
+                , Textfield.autofocus
+                , Textfield.text'
+                , Textfield.onInput (\str -> PageMsg (Page.Change Page.Title str))
+                , Textfield.value title
+                ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
-        ]
 
 
 descriptionView model =
@@ -256,32 +277,52 @@ descriptionView model =
                 text ""
 
         descriptionWidget =
-            if model.page.inline_edit == Page.Description then
-                updateSnippet
-            else
-                p []
-                    [ text model.page.description
-                    , editButton
-                    ]
+            case model.page.description of
+                RemoteData.Success value ->
+                    if model.page.inline_edit == Page.Description then
+                        updateSnippet
+                    else
+                        p []
+                            [ text value
+                            , editButton
+                            ]
+
+                RemoteData.Failure err ->
+                    text ("Error: " ++ toString err)
+
+                RemoteData.NotAsked ->
+                    text ""
+
+                RemoteData.Loading ->
+                    text "Loading..."
     in
         div [] [ descriptionWidget ]
 
 
 updateDescriptionView model =
-    div [ Attr.class "updateDescriptionWidget" ]
-        [ Textfield.render Mdl
-            [ 0 ]
-            model.mdl
-            [ Textfield.label "Description"
-            , Textfield.floatingLabel
-            , Textfield.autofocus
-            , Textfield.text'
-            , Textfield.onInput (\str -> PageMsg (Page.Change Page.Description str))
-            , Textfield.value model.page.description
+    let
+        description =
+            case model.page.description of
+                RemoteData.Success value ->
+                    value
+
+                _ ->
+                    ""
+    in
+        div [ Attr.class "updateDescriptionWidget" ]
+            [ Textfield.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Textfield.label "Description"
+                , Textfield.floatingLabel
+                , Textfield.autofocus
+                , Textfield.text'
+                , Textfield.onInput (\str -> PageMsg (Page.Change Page.Description str))
+                , Textfield.value description
+                ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
-        ]
 
 
 debugView model =
