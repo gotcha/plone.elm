@@ -4,7 +4,7 @@ import HttpBuilder
 import Json.Decode as Json
 import Json.Decode exposing ((:=))
 import Json.Encode exposing (object, string)
-import Plone.Login exposing (Security)
+import Plone.Login as Login
 import Task
 
 
@@ -17,7 +17,7 @@ type Field
     | NoField
 
 
-type alias PageModel =
+type alias Model =
     { title : String
     , description : String
     , inline_edit : Field
@@ -25,23 +25,23 @@ type alias PageModel =
     }
 
 
-changeField field value page =
+changeField field value model =
     case field of
         Title ->
-            { page | title = value }
+            { model | title = value }
 
         Description ->
-            { page | description = value }
+            { model | description = value }
 
         NoField ->
-            page
+            model
 
 
 
 -- UPDATE
 
 
-type PageMessage
+type Msg
     = Fetch
     | FetchSucceed (HttpBuilder.Response JsonPage)
     | FetchFail (HttpBuilder.Error String)
@@ -53,69 +53,69 @@ type PageMessage
     | CancelInlineEdit
 
 
-pageUpdate : PageMessage -> PageModel -> Security -> ( PageModel, Cmd PageMessage )
-pageUpdate msg page sec =
+update : Msg -> Model -> Login.Model -> ( Model, Cmd Msg )
+update msg model login =
     case msg of
         Fetch ->
-            ( page, (getDocumentTitle page) )
+            ( model, (getDocumentTitle model) )
 
         FetchSucceed response ->
             let
-                page' =
-                    { page
+                model' =
+                    { model
                         | title = response.data.title
                         , description = response.data.description
                     }
             in
-                ( page', Cmd.none )
+                ( model', Cmd.none )
 
         FetchFail _ ->
-            ( page, Cmd.none )
+            ( model, Cmd.none )
 
         Update field ->
             let
-                page' =
-                    { page | inline_edit = NoField }
+                model' =
+                    { model | inline_edit = NoField }
             in
-                ( page'
-                , updateField field page sec
+                ( model'
+                , updateField field model login
                 )
 
         UpdateFail _ ->
-            ( page, Cmd.none )
+            ( model, Cmd.none )
 
         UpdateSucceed _ ->
-            ( page, Cmd.none )
+            ( model, Cmd.none )
 
         Change field value ->
-            ( changeField field value page
+            ( changeField field value model
             , Cmd.none
             )
 
         InlineEdit field ->
             let
-                page' =
-                    { page | inline_edit = field }
+                model' =
+                    { model | inline_edit = field }
             in
-                ( page', Cmd.none )
+                ( model', Cmd.none )
 
         CancelInlineEdit ->
             let
-                page' =
-                    { page | inline_edit = NoField }
+                model' =
+                    { model | inline_edit = NoField }
             in
-                ( page', Cmd.none )
+                ( model', Cmd.none )
 
 
 
 -- HTTP
 
 
-getDocumentTitle : PageModel -> Cmd PageMessage
-getDocumentTitle page =
+getDocumentTitle : Model -> Cmd Msg
+getDocumentTitle model =
     Task.perform FetchFail
         FetchSucceed
-        (fetchDocumentTitle page)
+        (fetchDocumentTitle model)
 
 
 type alias JsonPage =
@@ -135,22 +135,22 @@ decodePage =
             decodeDescription
 
 
-fetchDocumentTitle : PageModel -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response JsonPage)
-fetchDocumentTitle page =
+fetchDocumentTitle : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response JsonPage)
+fetchDocumentTitle model =
     let
         url =
-            page.baseUrl ++ "front-page"
+            model.baseUrl ++ "front-page"
     in
         HttpBuilder.get url
             |> HttpBuilder.withHeader "Accept" "application/json"
             |> HttpBuilder.send (HttpBuilder.jsonReader decodePage) HttpBuilder.stringReader
 
 
-postField : Field -> PageModel -> Security -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-postField field page sec =
+postField : Field -> Model -> Login.Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+postField field model login =
     let
         token =
-            case sec.token of
+            case login.token of
                 Just token ->
                     token
 
@@ -158,7 +158,7 @@ postField field page sec =
                     ""
 
         url =
-            page.baseUrl ++ "front-page"
+            model.baseUrl ++ "front-page"
     in
         HttpBuilder.patch url
             |> HttpBuilder.withHeaders
@@ -166,11 +166,11 @@ postField field page sec =
                 , ( "Content-Type", "application/json" )
                 , ( "Authorization", "Bearer " ++ token )
                 ]
-            |> HttpBuilder.withJsonBody (jsonField field page)
+            |> HttpBuilder.withJsonBody (jsonField field model)
             |> HttpBuilder.send HttpBuilder.stringReader HttpBuilder.stringReader
 
 
-jsonField field page =
+jsonField field model =
     let
         name =
             case field of
@@ -186,10 +186,10 @@ jsonField field page =
         value =
             case field of
                 Title ->
-                    page.title
+                    model.title
 
                 Description ->
-                    page.description
+                    model.description
 
                 NoField ->
                     ""
@@ -197,8 +197,8 @@ jsonField field page =
         (object [ ( name, string value ) ])
 
 
-updateField : Field -> PageModel -> Security -> Cmd PageMessage
-updateField field page sec =
+updateField : Field -> Model -> Login.Model -> Cmd Msg
+updateField field model login =
     Task.perform UpdateFail
         UpdateSucceed
-        (postField field page sec)
+        (postField field model login)

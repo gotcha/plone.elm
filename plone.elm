@@ -22,8 +22,8 @@ import Material.Layout as Layout
 import Material.Icon as Icon
 import Material.Options exposing (css)
 import Plone.Css as PloneCss
-import Plone.Login exposing (..)
-import Plone.Page exposing (..)
+import Plone.Login as Login
+import Plone.Page as Page
 import Return exposing (Return)
 
 
@@ -41,8 +41,8 @@ main =
 
 
 type alias Model =
-    { page : PageModel
-    , sec : Security
+    { page : Page.Model
+    , login : Login.Model
     , mdl :
         Material.Model
         -- Boilerplate: model store for any and all Mdl components you use.
@@ -61,7 +61,7 @@ init =
         mdl =
             Material.model
 
-        sec =
+        login =
             { token = Nothing
             , connecting = False
             , user = Nothing
@@ -71,18 +71,18 @@ init =
         page =
             { title = ""
             , description = ""
-            , inline_edit = NoField
+            , inline_edit = Page.NoField
             , baseUrl = localUrl
             }
 
         initial_model =
             { page = page
-            , sec = sec
+            , login = login
             , mdl = mdl
             , debug = False
             }
     in
-        update (PageMsg Fetch) initial_model
+        update (PageMsg Page.Fetch) initial_model
 
 
 
@@ -91,8 +91,8 @@ init =
 
 type Msg
     = Mdl (Material.Msg Msg)
-    | LoginMsg LoginMessage
-    | PageMsg PageMessage
+    | LoginMsg Login.Msg
+    | PageMsg Page.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -103,18 +103,18 @@ update msg model =
 
         LoginMsg msg' ->
             let
-                ( sec', cmd' ) =
-                    loginUpdate msg' model.sec
+                ( login', cmd' ) =
+                    Login.update msg' model.login
 
                 model' =
-                    { model | sec = sec' }
+                    { model | login = login' }
             in
                 ( model', Cmd.map LoginMsg cmd' )
 
         PageMsg msg' ->
             let
                 ( page', cmd' ) =
-                    pageUpdate msg' model.page model.sec
+                    Page.update msg' model.page model.login
 
                 model' =
                     { model | page = page' }
@@ -143,7 +143,7 @@ type alias Mdl =
 
 isLoggedIn : Model -> Bool
 isLoggedIn model =
-    case model.sec.token of
+    case model.login.token of
         Just token ->
             True
 
@@ -153,7 +153,7 @@ isLoggedIn model =
 
 view : Model -> Html.Html Msg
 view model =
-    if model.sec.connecting then
+    if model.login.connecting then
         loginFormView model
             |> Material.Scheme.top
     else
@@ -162,11 +162,11 @@ view model =
 
 
 userOnInput string =
-    LoginMsg (ChangeUserId string)
+    LoginMsg (Login.ChangeUserId string)
 
 
 passwordOnInput string =
-    LoginMsg (ChangePassword string)
+    LoginMsg (Login.ChangePassword string)
 
 
 loginFormView model =
@@ -189,8 +189,8 @@ loginFormView model =
             , Textfield.password
             , Textfield.onInput passwordOnInput
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg LoggingIn) ] [ text "Login" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg CancelLoginForm) ] [ text "Cancel" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.LoggingIn) ] [ text "Login" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.CancelLoginForm) ] [ text "Cancel" ]
         , debugView model
         ]
 
@@ -214,7 +214,7 @@ titleView model =
                     [ 0 ]
                     model.mdl
                     [ Button.icon
-                    , Button.onClick (PageMsg (InlineEdit Title))
+                    , Button.onClick (PageMsg (Page.InlineEdit Page.Title))
                     ]
                     [ Icon.i "mode_edit" ]
             else
@@ -227,7 +227,7 @@ titleView model =
                 text ""
 
         titleWidget =
-            if model.page.inline_edit == Title then
+            if model.page.inline_edit == Page.Title then
                 updateSnippet
             else
                 h2 []
@@ -239,7 +239,7 @@ titleView model =
 
 
 titleOnInput string =
-    PageMsg (Change Title string)
+    PageMsg (Page.Change Page.Title string)
 
 
 updateTitleView model =
@@ -254,8 +254,8 @@ updateTitleView model =
             , Textfield.onInput titleOnInput
             , Textfield.value model.page.title
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Update Title)) ] [ text "Update" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg CancelInlineEdit) ] [ text "Cancel" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
         ]
 
 
@@ -267,7 +267,7 @@ descriptionView model =
                     [ 0 ]
                     model.mdl
                     [ Button.icon
-                    , Button.onClick (PageMsg (InlineEdit Description))
+                    , Button.onClick (PageMsg (Page.InlineEdit Page.Description))
                     ]
                     [ Icon.i "mode_edit" ]
             else
@@ -280,7 +280,7 @@ descriptionView model =
                 text ""
 
         descriptionWidget =
-            if model.page.inline_edit == Description then
+            if model.page.inline_edit == Page.Description then
                 updateSnippet
             else
                 p []
@@ -292,7 +292,7 @@ descriptionView model =
 
 
 descriptionOnInput string =
-    PageMsg (Change Description string)
+    PageMsg (Page.Change Page.Description string)
 
 
 updateDescriptionView model =
@@ -307,8 +307,8 @@ updateDescriptionView model =
             , Textfield.onInput descriptionOnInput
             , Textfield.value model.page.description
             ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Update Description)) ] [ text "Update" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg CancelInlineEdit) ] [ text "Cancel" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
+        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
         ]
 
 
@@ -327,8 +327,8 @@ loginView model =
     if isLoggedIn model then
         div [ class [ PloneCss.NavBar ] ]
             [ Icon.i "person"
-            , text (userid model.sec)
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Logout) ] [ text "Logout" ]
+            , text (Login.userid model.login)
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.Logout) ] [ text "Logout" ]
             ]
     else
-        Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg LoginForm) ] [ text "Login" ]
+        Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.LoginForm) ] [ text "Login" ]

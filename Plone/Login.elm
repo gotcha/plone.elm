@@ -9,7 +9,7 @@ import Task
 -- MODEL
 
 
-type alias Security =
+type alias Model =
     { token : Maybe String
     , connecting : Bool
     , user : Maybe User
@@ -23,9 +23,9 @@ type alias User =
     }
 
 
-userid : Security -> String
-userid sec =
-    case sec.user of
+userid : Model -> String
+userid model =
+    case model.user of
         Just user ->
             user.userid
 
@@ -33,9 +33,9 @@ userid sec =
             "anonymous"
 
 
-password : Security -> String
-password sec =
-    case sec.user of
+password : Model -> String
+password model =
+    case model.user of
         Just user ->
             user.password
 
@@ -55,7 +55,7 @@ loginJson userid password =
 -- UPDATE
 
 
-type LoginMessage
+type Msg
     = LoginForm
     | CancelLoginForm
     | ChangePassword String
@@ -66,17 +66,17 @@ type LoginMessage
     | LoginFail (HttpBuilder.Error String)
 
 
-loginUpdate : LoginMessage -> Security -> ( Security, Cmd LoginMessage )
-loginUpdate msg sec =
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
     case msg of
         LoggingIn ->
-            ( sec, getToken sec )
+            ( model, getToken model )
 
         Logout ->
-            ( { sec | token = Nothing }, Cmd.none )
+            ( { model | token = Nothing }, Cmd.none )
 
         LoginSucceed response ->
-            ( { sec
+            ( { model
                 | token = Just response.data
                 , connecting = False
               }
@@ -84,13 +84,13 @@ loginUpdate msg sec =
             )
 
         LoginFail _ ->
-            ( { sec | connecting = False }, Cmd.none )
+            ( { model | connecting = False }, Cmd.none )
 
         LoginForm ->
-            ( { sec | connecting = True }, Cmd.none )
+            ( { model | connecting = True }, Cmd.none )
 
         CancelLoginForm ->
-            ( { sec
+            ( { model
                 | user = Nothing
                 , connecting = False
               }
@@ -100,29 +100,29 @@ loginUpdate msg sec =
         ChangePassword newPassword ->
             let
                 currentUserid =
-                    userid sec
+                    userid model
 
                 user =
                     Just (User currentUserid newPassword)
             in
-                ( { sec | user = user }, Cmd.none )
+                ( { model | user = user }, Cmd.none )
 
         ChangeUserId newUserid ->
             let
                 currentPassword =
-                    password sec
+                    password model
 
                 user =
                     Just (User newUserid currentPassword)
             in
-                ( { sec | user = user }, Cmd.none )
+                ( { model | user = user }, Cmd.none )
 
 
-getToken : Security -> Cmd LoginMessage
-getToken sec =
+getToken : Model -> Cmd Msg
+getToken model =
     Task.perform LoginFail
         LoginSucceed
-        (fetchToken sec)
+        (fetchToken model)
 
 
 decodeToken : Json.Decoder String
@@ -130,16 +130,16 @@ decodeToken =
     Json.at [ "token" ] Json.string
 
 
-fetchToken : Security -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-fetchToken sec =
+fetchToken : Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+fetchToken model =
     let
         url =
-            sec.baseUrl ++ "@login"
+            model.baseUrl ++ "@login"
     in
         HttpBuilder.post url
             |> HttpBuilder.withHeaders
                 [ ( "Accept", "application/json" )
                 , ( "Content-Type", "application/json" )
                 ]
-            |> HttpBuilder.withJsonBody (loginJson (userid sec) (password sec))
+            |> HttpBuilder.withJsonBody (loginJson (userid model) (password model))
             |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader
