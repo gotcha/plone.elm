@@ -149,14 +149,6 @@ view model =
             |> Material.Scheme.top
 
 
-userOnInput string =
-    LoginMsg (Login.ChangeUserId string)
-
-
-passwordOnInput string =
-    LoginMsg (Login.ChangePassword string)
-
-
 loginFormView model =
     div []
         [ h2 [] [ text "Login Form" ]
@@ -167,7 +159,7 @@ loginFormView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput userOnInput
+            , Textfield.onInput (\str -> LoginMsg (Login.ChangeUserId str))
             ]
         , Textfield.render Mdl
             [ 1 ]
@@ -175,7 +167,7 @@ loginFormView model =
             [ Textfield.label "Password"
             , Textfield.floatingLabel
             , Textfield.password
-            , Textfield.onInput passwordOnInput
+            , Textfield.onInput (\str -> LoginMsg (Login.ChangePassword str))
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.GetToken) ] [ text "Login" ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.CancelLoginForm) ] [ text "Cancel" ]
@@ -226,10 +218,6 @@ titleView model =
         div [] [ titleWidget ]
 
 
-titleOnInput string =
-    PageMsg (Page.Change Page.Title string)
-
-
 updateTitleView model =
     div [ Attr.class "updateTitleWidget" ]
         [ Textfield.render Mdl
@@ -239,7 +227,7 @@ updateTitleView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput titleOnInput
+            , Textfield.onInput (\str -> PageMsg (Page.Change Page.Title str))
             , Textfield.value model.page.title
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
@@ -279,10 +267,6 @@ descriptionView model =
         div [] [ descriptionWidget ]
 
 
-descriptionOnInput string =
-    PageMsg (Page.Change Page.Description string)
-
-
 updateDescriptionView model =
     div [ Attr.class "updateDescriptionWidget" ]
         [ Textfield.render Mdl
@@ -292,7 +276,7 @@ updateDescriptionView model =
             , Textfield.floatingLabel
             , Textfield.autofocus
             , Textfield.text'
-            , Textfield.onInput descriptionOnInput
+            , Textfield.onInput (\str -> PageMsg (Page.Change Page.Description str))
             , Textfield.value model.page.description
             ]
         , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
