@@ -9,6 +9,7 @@ import Html
         , h2
         , p
         , pre
+        , form
         )
 import Html.App
 import Html.Attributes as Attr
@@ -153,25 +154,27 @@ view model =
 loginFormView model =
     div []
         [ h2 [] [ text "Login Form" ]
-        , Textfield.render Mdl
-            [ 0 ]
-            model.mdl
-            [ Textfield.label "User Id"
-            , Textfield.floatingLabel
-            , Textfield.autofocus
-            , Textfield.text'
-            , Textfield.onInput (\str -> LoginMsg (Login.ChangeUserId str))
+        , form [ Events.onSubmit (LoginMsg Login.GetToken) ]
+            [ Textfield.render Mdl
+                [ 0 ]
+                model.mdl
+                [ Textfield.label "User Id"
+                , Textfield.floatingLabel
+                , Textfield.autofocus
+                , Textfield.text'
+                , Textfield.onInput (\str -> LoginMsg (Login.ChangeUserId str))
+                ]
+            , Textfield.render Mdl
+                [ 1 ]
+                model.mdl
+                [ Textfield.label "Password"
+                , Textfield.floatingLabel
+                , Textfield.password
+                , Textfield.onInput (\str -> LoginMsg (Login.ChangePassword str))
+                ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.GetToken) ] [ text "Login" ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.CancelLoginForm) ] [ text "Cancel" ]
             ]
-        , Textfield.render Mdl
-            [ 1 ]
-            model.mdl
-            [ Textfield.label "Password"
-            , Textfield.floatingLabel
-            , Textfield.password
-            , Textfield.onInput (\str -> LoginMsg (Login.ChangePassword str))
-            ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.GetToken) ] [ text "Login" ]
-        , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.CancelLoginForm) ] [ text "Cancel" ]
         , debugView model
         ]
 
@@ -241,18 +244,20 @@ updateTitleView model =
                     ""
     in
         div [ Attr.class "updateTitleWidget" ]
-            [ Textfield.render Mdl
-                [ 0 ]
-                model.mdl
-                [ Textfield.label "Title"
-                , Textfield.floatingLabel
-                , Textfield.autofocus
-                , Textfield.text'
-                , Textfield.onInput (\str -> PageMsg (Page.Change Page.Title str))
-                , Textfield.value title
+            [ form [ Events.onSubmit (PageMsg (Page.Update Page.Title)) ]
+                [ Textfield.render Mdl
+                    [ 0 ]
+                    model.mdl
+                    [ Textfield.label "Title"
+                    , Textfield.floatingLabel
+                    , Textfield.autofocus
+                    , Textfield.text'
+                    , Textfield.onInput (\str -> PageMsg (Page.Change Page.Title str))
+                    , Textfield.value title
+                    ]
+                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
+                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
                 ]
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
             ]
 
 
@@ -310,18 +315,20 @@ updateDescriptionView model =
                     ""
     in
         div [ Attr.class "updateDescriptionWidget" ]
-            [ Textfield.render Mdl
-                [ 0 ]
-                model.mdl
-                [ Textfield.label "Description"
-                , Textfield.floatingLabel
-                , Textfield.autofocus
-                , Textfield.text'
-                , Textfield.onInput (\str -> PageMsg (Page.Change Page.Description str))
-                , Textfield.value description
+            [ form [ Events.onSubmit (PageMsg (Page.Update Page.Description)) ]
+                [ Textfield.render Mdl
+                    [ 0 ]
+                    model.mdl
+                    [ Textfield.label "Description"
+                    , Textfield.floatingLabel
+                    , Textfield.autofocus
+                    , Textfield.text'
+                    , Textfield.onInput (\str -> PageMsg (Page.Change Page.Description str))
+                    , Textfield.value description
+                    ]
+                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
+                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
                 ]
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
             ]
 
 

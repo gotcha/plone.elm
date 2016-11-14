@@ -19,7 +19,8 @@ Edit Plone through `plone.restapi` with an Elm application
   - [x] title inline edit
   - [x] description
   - [x] description inline edit
-  - [ ] allow Enter and Esc
+  - [x] allow Enter
+  - [ ] allow Esc
   - [ ] Use mdl dialogs
 * [x] logout
 
