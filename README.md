@@ -21,5 +21,6 @@ Edit Plone through `plone.restapi` with an Elm application
   - [x] description inline edit
   - [x] allow Enter
   - [ ] Use mdl dialogs
+  - [ ] edit different pages
 * [x] logout
 
