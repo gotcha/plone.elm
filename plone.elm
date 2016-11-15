@@ -99,16 +99,16 @@ type Msg
 
 update : Msg -> Model -> Return Msg Model
 update msg model =
-    case Debug.log "model" msg of
-        Mdl msg' ->
-            Material.update msg' model
+    case Debug.log "update" msg of
+        Mdl msg_ ->
+            Material.update msg_ model
 
-        LoginMsg msg' ->
-            Login.update msg' model.login
+        LoginMsg msg_ ->
+            Login.update msg_ model.login
                 |> mapBoth LoginMsg (\login -> { model | login = login })
 
-        PageMsg msg' ->
-            Page.update msg' model.page model.login
+        PageMsg msg_ ->
+            Page.update msg_ model.page model.login
                 |> mapBoth PageMsg (\page -> { model | page = page })
 
 
@@ -255,9 +255,9 @@ updateTitleView model =
                     , Textfield.onInput (\str -> PageMsg (Page.Change Page.Title str))
                     , Textfield.value title
                     ]
-                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Title)) ] [ text "Update" ]
-                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
+                , Button.render Mdl [ 0 ] model.mdl [] [ text "Update" ]
                 ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
             ]
 
 
@@ -326,9 +326,9 @@ updateDescriptionView model =
                     , Textfield.onInput (\str -> PageMsg (Page.Change Page.Description str))
                     , Textfield.value description
                     ]
-                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg (Page.Update Page.Description)) ] [ text "Update" ]
-                , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
+                , Button.render Mdl [ 0 ] model.mdl [] [ text "Update" ]
                 ]
+            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (PageMsg Page.CancelInlineEdit) ] [ text "Cancel" ]
             ]
 
 

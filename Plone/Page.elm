@@ -78,9 +78,11 @@ update msg model login =
 
         UpdateFail _ ->
             singleton model
+                |> command (fetchCmd model)
 
         UpdateSucceed _ ->
             singleton model
+                |> command (fetchCmd model)
 
         Change field value ->
             singleton (changeField field value model)
@@ -90,6 +92,7 @@ update msg model login =
 
         CancelInlineEdit ->
             singleton { model | inline_edit = NoField }
+                |> command (fetchCmd model)
 
 
 
