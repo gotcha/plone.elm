@@ -11,7 +11,7 @@ Edit Plone through `plone.restapi` with an Elm application
 * [x] refactor into modules
 * [ ] use `elm-test`
 * [x] use `elm-return`
-* [ ] use `navigation` to make urls and `evancz/url-parser`
+* [x] use `navigation` to make urls and `evancz/url-parser`
 * [x] use `RemoteData`
 * [ ] better UI
   - [x] initialize title on load

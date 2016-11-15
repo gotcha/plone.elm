@@ -22,20 +22,72 @@ import Material.Textfield as Textfield
 import Material.Layout as Layout
 import Material.Icon as Icon
 import Material.Options exposing (css)
+import Navigation
 import Plone.Css as PloneCss
 import Plone.Login as Login
 import Plone.Page as Page
 import RemoteData
-import Return exposing (Return, mapBoth)
+import Return exposing (Return, mapBoth, singleton, command)
+import String
+import UrlParser
 
 
 main =
-    Html.App.program
+    Navigation.program (Navigation.makeParser hashParser)
         { init = init
-        , view = view
-        , update = update
         , subscriptions = subscriptions
+        , update = update
+        , urlUpdate = urlUpdate
+        , view = view
         }
+
+
+
+-- NAVIGATION
+
+
+hashParser : Navigation.Location -> Result String Route
+hashParser location =
+    let
+        dummy =
+            Debug.log "location" location
+    in
+        UrlParser.parse identity routeParser (String.dropLeft 1 location.hash)
+
+
+type Route
+    = LoginRoute
+    | HomeRoute
+
+
+routeParser : UrlParser.Parser (Route -> a) a
+routeParser =
+    UrlParser.oneOf
+        [ UrlParser.format LoginRoute (UrlParser.s "login")
+        , UrlParser.format HomeRoute (UrlParser.s "home")
+        , UrlParser.format LoginRoute (UrlParser.s "")
+        ]
+
+
+urlUpdate : Result String Route -> Model -> ( Model, Cmd Msg )
+urlUpdate result model =
+    case Debug.log "urlUpdate" result of
+        Err _ ->
+            singleton model
+
+        Ok route ->
+            let
+                model_ =
+                    { model | route = route }
+            in
+                case route of
+                    LoginRoute ->
+                        Login.update Login.LoginForm model.login
+                            |> mapBoth LoginMsg (\login -> { model_ | login = login })
+
+                    HomeRoute ->
+                        Page.update Page.Fetch model.page model.login
+                            |> mapBoth PageMsg (\page -> { model_ | page = page })
 
 
 
@@ -45,6 +97,7 @@ main =
 type alias Model =
     { page : Page.Model
     , login : Login.Model
+    , route : Route
     , mdl :
         Material.Model
         -- Boilerplate: model store for any and all Mdl components you use.
@@ -56,9 +109,12 @@ localUrl =
     "http://localhost:8080/Plone/"
 
 
-init : Return Msg Model
-init =
+init : Result String Route -> Return Msg Model
+init route =
     let
+        route =
+            Debug.log "route" route
+
         -- Boilerplate: Always use this initial Mdl model store.
         mdl =
             Material.model
@@ -80,11 +136,12 @@ init =
         initial_model =
             { page = page
             , login = login
+            , route = LoginRoute
             , mdl = mdl
             , debug = False
             }
     in
-        update (PageMsg Page.Fetch) initial_model
+        urlUpdate route initial_model
 
 
 
@@ -95,6 +152,7 @@ type Msg
     = Mdl (Material.Msg Msg)
     | LoginMsg Login.Msg
     | PageMsg Page.Msg
+    | LoginPage
 
 
 update : Msg -> Model -> Return Msg Model
@@ -110,6 +168,10 @@ update msg model =
         PageMsg msg_ ->
             Page.update msg_ model.page model.login
                 |> mapBoth PageMsg (\page -> { model | page = page })
+
+        LoginPage ->
+            singleton model
+                |> command (Navigation.newUrl "#login")
 
 
 
@@ -143,7 +205,7 @@ isLoggedIn model =
 
 view : Model -> Html.Html Msg
 view model =
-    if model.login.connecting then
+    if model.route == LoginRoute then
         loginFormView model
             |> Material.Scheme.top
     else
@@ -351,4 +413,4 @@ loginView model =
             , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.Logout) ] [ text "Logout" ]
             ]
     else
-        Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.LoginForm) ] [ text "Login" ]
+        Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoginPage ] [ text "Login" ]

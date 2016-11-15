@@ -3,6 +3,7 @@ module Plone.Login exposing (..)
 import Json.Encode exposing (object, string)
 import Json.Decode as Json
 import HttpBuilder
+import Navigation
 import Return exposing (Return, singleton, command)
 import Task
 
@@ -82,9 +83,11 @@ update msg model =
                     | token = Just response.data
                     , connecting = False
                 }
+                |> command (Navigation.newUrl "#home")
 
         LoginFail _ ->
             singleton { model | connecting = False }
+                |> command (Navigation.newUrl "#home")
 
         LoginForm ->
             singleton { model | connecting = True }
@@ -95,6 +98,7 @@ update msg model =
                     | user = Nothing
                     , connecting = False
                 }
+                |> command (Navigation.newUrl "#home")
 
         ChangePassword newPassword ->
             let
