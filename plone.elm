@@ -407,10 +407,19 @@ debugView model =
 
 loginView model =
     if isLoggedIn model then
-        div [ class [ PloneCss.NavBar ] ]
-            [ Icon.i "person"
-            , text (Login.userid model.login)
-            , Button.render Mdl [ 0 ] model.mdl [ Button.onClick (LoginMsg Login.Logout) ] [ text "Logout" ]
+        Layout.row []
+            [ Layout.title [] [ text "Plone.elm" ]
+            , Layout.spacer
+            , Layout.navigation []
+                [ Layout.link [] [ Icon.i "person", text (Login.userid model.login) ]
+                , Layout.link [ Layout.onClick (LoginMsg Login.Logout), css "cursor" "pointer" ] [ text "Logout" ]
+                ]
             ]
     else
-        Button.render Mdl [ 0 ] model.mdl [ Button.onClick LoginPage ] [ text "Login" ]
+        Layout.row []
+            [ Layout.title [] [ text "Plone.elm" ]
+            , Layout.spacer
+            , Layout.navigation []
+                [ Layout.link [ Layout.onClick LoginPage, css "cursor" "pointer" ] [ text "Login" ]
+                ]
+            ]
