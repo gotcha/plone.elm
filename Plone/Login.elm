@@ -12,17 +12,27 @@ import Task
 
 
 type alias Model =
-    { token : Maybe String
-    , connecting : Bool
+    { connecting : Bool
     , user : Maybe User
     , baseUrl : String
+    , form : Form
+    }
+
+
+type alias Form =
+    { userid : String
+    , password : String
     }
 
 
 type alias User =
     { userid : String
-    , password : String
+    , token : String
     }
+
+
+type alias Token =
+    String
 
 
 userid : Model -> String
@@ -35,21 +45,21 @@ userid model =
             "anonymous"
 
 
-password : Model -> String
-password model =
+token : Model -> Token
+token model =
     case model.user of
         Just user ->
-            user.password
+            user.token
 
         Nothing ->
             ""
 
 
-loginJson : String -> String -> Json.Encode.Value
-loginJson userid password =
+loginJson : Form -> Json.Encode.Value
+loginJson form =
     object
-        [ ( "login", string userid )
-        , ( "password", string password )
+        [ ( "login", string form.userid )
+        , ( "password", string form.password )
         ]
 
 
@@ -75,12 +85,12 @@ update msg model =
             singleton model |> command (getTokenCmd model)
 
         Logout ->
-            singleton { model | token = Nothing }
+            singleton { model | user = Nothing }
 
         LoginSucceed response ->
             singleton
                 { model
-                    | token = Just response.data
+                    | user = Just (User model.form.userid response.data)
                     , connecting = False
                 }
                 |> command (Navigation.newUrl "#home")
@@ -102,23 +112,23 @@ update msg model =
 
         ChangePassword newPassword ->
             let
-                currentUserid =
-                    userid model
+                form_ =
+                    model.form
 
-                user =
-                    Just (User currentUserid newPassword)
+                form =
+                    { form_ | password = newPassword }
             in
-                singleton { model | user = user }
+                singleton { model | form = form }
 
         ChangeUserId newUserid ->
             let
-                currentPassword =
-                    password model
+                form_ =
+                    model.form
 
-                user =
-                    Just (User newUserid currentPassword)
+                form =
+                    { form_ | userid = newUserid }
             in
-                singleton { model | user = user }
+                singleton { model | form = form }
 
 
 getTokenCmd : Model -> Cmd Msg
@@ -144,5 +154,5 @@ getTokenRequest model =
                 [ ( "Accept", "application/json" )
                 , ( "Content-Type", "application/json" )
                 ]
-            |> HttpBuilder.withJsonBody (loginJson (userid model) (password model))
+            |> HttpBuilder.withJsonBody (loginJson model.form)
             |> HttpBuilder.send (HttpBuilder.jsonReader decodeToken) HttpBuilder.stringReader

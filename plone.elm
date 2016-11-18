@@ -79,6 +79,9 @@ urlUpdate result model =
             let
                 model_ =
                     { model | route = route }
+
+                token =
+                    Login.token model.login
             in
                 case route of
                     LoginRoute ->
@@ -86,7 +89,7 @@ urlUpdate result model =
                             |> mapBoth LoginMsg (\login -> { model_ | login = login })
 
                     HomeRoute ->
-                        Page.update Page.Fetch model.page model.login
+                        Page.update Page.Fetch model.page token
                             |> mapBoth PageMsg (\page -> { model_ | page = page })
 
 
@@ -120,8 +123,8 @@ init route =
             Material.model
 
         login =
-            { token = Nothing
-            , connecting = False
+            { connecting = False
+            , form = Login.Form "" ""
             , user = Nothing
             , baseUrl = localUrl
             }
@@ -166,8 +169,12 @@ update msg model =
                 |> mapBoth LoginMsg (\login -> { model | login = login })
 
         PageMsg msg_ ->
-            Page.update msg_ model.page model.login
-                |> mapBoth PageMsg (\page -> { model | page = page })
+            let
+                token =
+                    Login.token model.login
+            in
+                Page.update msg_ model.page token
+                    |> mapBoth PageMsg (\page -> { model | page = page })
 
         LoginPage ->
             singleton model
@@ -195,8 +202,8 @@ type alias Mdl =
 
 isLoggedIn : Model -> Bool
 isLoggedIn model =
-    case model.login.token of
-        Just token ->
+    case model.login.user of
+        Just user ->
             True
 
         Nothing ->

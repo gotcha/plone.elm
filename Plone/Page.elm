@@ -55,8 +55,8 @@ type Msg
     | CancelInlineEdit
 
 
-update : Msg -> Model -> Login.Model -> Return Msg Model
-update msg model login =
+update : Msg -> Model -> Login.Token -> Return Msg Model
+update msg model token =
     case msg of
         Fetch ->
             singleton model
@@ -74,7 +74,7 @@ update msg model login =
 
         Update field ->
             singleton { model | inline_edit = NoField }
-                |> command (updateFieldCmd field model login)
+                |> command (updateFieldCmd field model token)
 
         UpdateFail _ ->
             singleton model
@@ -132,12 +132,9 @@ fetchRequest model =
             |> HttpBuilder.send (HttpBuilder.jsonReader decodePage) HttpBuilder.stringReader
 
 
-updateFieldPost : Field -> Model -> Login.Model -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
-updateFieldPost field model login =
+updateFieldPost : Field -> Model -> Login.Token -> Task.Task (HttpBuilder.Error String) (HttpBuilder.Response String)
+updateFieldPost field model token =
     let
-        token =
-            Maybe.withDefault "" login.token
-
         url =
             model.baseUrl ++ "front-page"
     in
@@ -188,8 +185,8 @@ jsonField field model =
         (object [ ( name, string value ) ])
 
 
-updateFieldCmd : Field -> Model -> Login.Model -> Cmd Msg
-updateFieldCmd field model login =
+updateFieldCmd : Field -> Model -> Login.Token -> Cmd Msg
+updateFieldCmd field model token =
     Task.perform UpdateFail
         UpdateSucceed
-        (updateFieldPost field model login)
+        (updateFieldPost field model token)
