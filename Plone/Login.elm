@@ -12,8 +12,7 @@ import Task
 
 
 type alias Model =
-    { connecting : Bool
-    , user : Maybe User
+    { user : Maybe User
     , baseUrl : String
     , form : Form
     }
@@ -68,8 +67,7 @@ loginJson form =
 
 
 type Msg
-    = LoginForm
-    | CancelLoginForm
+    = CancelLoginForm
     | ChangePassword String
     | ChangeUserId String
     | GetToken
@@ -91,22 +89,17 @@ update msg model =
             singleton
                 { model
                     | user = Just (User model.form.userid response.data)
-                    , connecting = False
                 }
                 |> command (Navigation.newUrl "#home")
 
         LoginFail _ ->
-            singleton { model | connecting = False }
-                |> command (Navigation.newUrl "#home")
-
-        LoginForm ->
-            singleton { model | connecting = True }
+            singleton model
 
         CancelLoginForm ->
             singleton
                 { model
                     | user = Nothing
-                    , connecting = False
+                    , form = Form "" ""
                 }
                 |> command (Navigation.newUrl "#home")
 

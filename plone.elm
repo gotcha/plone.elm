@@ -77,7 +77,7 @@ urlUpdate result model =
 
         Ok route ->
             let
-                model_ =
+                model =
                     { model | route = route }
 
                 token =
@@ -85,12 +85,11 @@ urlUpdate result model =
             in
                 case route of
                     LoginRoute ->
-                        Login.update Login.LoginForm model.login
-                            |> mapBoth LoginMsg (\login -> { model_ | login = login })
+                        singleton model
 
                     HomeRoute ->
                         Page.update Page.Fetch model.page token
-                            |> mapBoth PageMsg (\page -> { model_ | page = page })
+                            |> mapBoth PageMsg (\page -> { model | page = page })
 
 
 
@@ -123,8 +122,7 @@ init route =
             Material.model
 
         login =
-            { connecting = False
-            , form = Login.Form "" ""
+            { form = Login.Form "" ""
             , user = Nothing
             , baseUrl = localUrl
             }
@@ -212,12 +210,16 @@ isLoggedIn model =
 
 view : Model -> Html.Html Msg
 view model =
-    if model.route == LoginRoute then
-        loginFormView model
-            |> Material.Scheme.top
-    else
-        mainView model
-            |> Material.Scheme.top
+    let
+        model =
+            Debug.log "model" model
+    in
+        if model.route == LoginRoute then
+            loginFormView model
+                |> Material.Scheme.top
+        else
+            mainView model
+                |> Material.Scheme.top
 
 
 loginFormView model =
