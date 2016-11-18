@@ -18,6 +18,14 @@ type alias Model =
     }
 
 
+initial_model : String -> Model
+initial_model baseUrl =
+    { user = Nothing
+    , baseUrl = baseUrl
+    , form = Form "" ""
+    }
+
+
 type alias Form =
     { userid : String
     , password : String

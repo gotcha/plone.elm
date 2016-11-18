@@ -114,31 +114,11 @@ localUrl =
 init : Result String Route -> Return Msg Model
 init route =
     let
-        route =
-            Debug.log "route" route
-
-        -- Boilerplate: Always use this initial Mdl model store.
-        mdl =
-            Material.model
-
-        login =
-            { form = Login.Form "" ""
-            , user = Nothing
-            , baseUrl = localUrl
-            }
-
-        page =
-            { title = RemoteData.Loading
-            , description = RemoteData.Loading
-            , inline_edit = Page.NoField
-            , baseUrl = localUrl
-            }
-
         initial_model =
-            { page = page
-            , login = login
+            { page = Page.initial_model localUrl
+            , login = Login.initial_model localUrl
             , route = LoginRoute
-            , mdl = mdl
+            , mdl = Material.model
             , debug = False
             }
     in

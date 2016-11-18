@@ -27,6 +27,15 @@ type alias Model =
     }
 
 
+initial_model : String -> Model
+initial_model baseUrl =
+    { title = RemoteData.Loading
+    , description = RemoteData.Loading
+    , inline_edit = NoField
+    , baseUrl = baseUrl
+    }
+
+
 changeField field value model =
     case field of
         Title ->
